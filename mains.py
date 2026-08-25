@@ -6,6 +6,7 @@ from models import (
 
 from route_generator import generate_candidate_routes
 from visualizer import plot_routes
+from simulator import simulate_all_routes
 
 
 def build_sample_twin():
@@ -34,6 +35,15 @@ if __name__ == "__main__":
         print(f"\nRoute {i+1}:")
         for wp in route.waypoints:
             print(f"  lat={wp.lat:.2f}, lon={wp.lon:.2f}")
+
+    performance = simulate_all_routes(routes, twin)
+
+    for i, perf in enumerate(performance):
+        print(f"\nRoute {i+1} Performance:")
+        print(f"  Distance: {perf['distance']} km")
+        print(f"  Fuel:     {perf['fuel']} tonnes")
+        print(f"  Time:     {perf['time']} hours")
+        print(f"  Risk:     {perf['risk']}")
 
     plot_routes(
         routes,
