@@ -7,6 +7,7 @@ from models import (
 from route_generator import generate_candidate_routes
 from visualizer import plot_routes
 from simulator import simulate_all_routes
+from optimizer import select_best_route
 
 
 def build_sample_twin():
@@ -45,10 +46,13 @@ if __name__ == "__main__":
         print(f"  Time:     {perf['time']} hours")
         print(f"  Risk:     {perf['risk']}")
 
+    best_index, scores = select_best_route(performance)
+    print(f"\n>>> Recommended Route: Route {best_index + 1} (Risk={scores[best_index]:.3f})")
+
     plot_routes(
         routes,
         vessel_position=(twin.vessel.navigation.lat, twin.vessel.navigation.lon),
         origin=twin.mission.origin,
         destination=twin.mission.destination,
-        recommended_index=0
+        recommended_index=best_index
     )
