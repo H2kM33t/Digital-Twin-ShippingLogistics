@@ -46,8 +46,14 @@ if __name__ == "__main__":
         print(f"  Time:     {perf['time']} hours")
         print(f"  Risk:     {perf['risk']}")
 
-    best_index, scores = select_best_route(performance)
-    print(f"\n>>> Recommended Route: Route {best_index + 1} (Risk={scores[best_index]:.3f})")
+    best_index, report = select_best_route(performance)
+
+    print(f"\nPareto-optimal routes: {[i+1 for i in report['pareto_indices']]}")
+    print("TOPSIS scores (higher = better):")
+    for idx, score in report['topsis_scores'].items():
+        print(f"  Route {idx+1}: {score:.3f}")
+
+    print(f"\n>>> Recommended Route: Route {best_index + 1}")
 
     plot_routes(
         routes,
