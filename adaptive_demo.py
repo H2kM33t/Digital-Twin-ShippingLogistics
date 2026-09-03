@@ -6,6 +6,7 @@ from models import (
 from route_generator import generate_candidate_routes
 from simulator import simulate_all_routes
 from optimizer import select_best_route
+from objective_builder import build_adaptive_weights, compute_pressures, explain_weights, BASE_WEIGHTS
 from visualizer import plot_routes
 from digital_twin_generator import DigitalTwinSimulator, VesselConfig, MissionConfig, SimulationConfig
 
@@ -56,12 +57,14 @@ def twin_state_to_digital_twin(state, origin_coords, destination_coords, max_spe
     return DigitalTwin(vessel=vessel, environment=env, mission=mission)
 
 
-def print_report(label, performance, best_index, report):
+def print_report(label, performance, best_index, report, weight_explanation=None):
     print(f"\n{'='*50}")
     print(label)
     print('='*50)
     for i, perf in enumerate(performance):
         print(f"Route {i+1}: Fuel={perf['fuel']}t  Time={perf['time']}h  Risk={perf['risk']}")
+    if weight_explanation:
+        print(f"\n{weight_explanation}")
     print(f"\nPareto-optimal routes: {[i+1 for i in report['pareto_indices']]}")
     print(f">>> Recommended Route: Route {best_index + 1}")
 
@@ -81,8 +84,11 @@ if __name__ == "__main__":
     routes = generate_candidate_routes(twin_normal.mission.origin, twin_normal.mission.destination)
 
     performance_before = simulate_all_routes(routes, twin_normal)
-    best_before, report_before = select_best_route(performance_before)
-    print_report("BEFORE: Normal Conditions", performance_before, best_before, report_before)
+    weights_before = build_adaptive_weights(twin_normal)
+    pressures_before = compute_pressures(twin_normal)
+    explanation_before = explain_weights(BASE_WEIGHTS, weights_before, pressures_before)
+    best_before, report_before = select_best_route(performance_before, weights=weights_before)
+    print_report("BEFORE: Normal Conditions", performance_before, best_before, report_before, explanation_before)
 
     # ---- AFTER: storm conditions ----
     state_storm = generate_stepped_state(origin, destination, scenario="extreme_weather", steps=10, anomaly_severity=0.9)
@@ -93,8 +99,11 @@ if __name__ == "__main__":
     )
 
     performance_after = simulate_all_routes(routes, twin_storm)
-    best_after, report_after = select_best_route(performance_after)
-    print_report("AFTER: Storm Detected (extreme_weather)", performance_after, best_after, report_after)
+    weights_after = build_adaptive_weights(twin_storm)
+    pressures_after = compute_pressures(twin_storm)
+    explanation_after = explain_weights(BASE_WEIGHTS, weights_after, pressures_after)
+    best_after, report_after = select_best_route(performance_after, weights=weights_after)
+    print_report("AFTER: Storm Detected (extreme_weather)", performance_after, best_after, report_after, explanation_after)
 
     # ---- Compare ----
     print(f"\n{'='*50}")
