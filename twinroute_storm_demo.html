@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TwinRoute-M — Storm Replan (live pipeline output)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root{
+  --abyss:#050e16; --panel:#0a1a26; --panel-2:#0d2130;
+  --grid:#12324a; --grid-dim:#0e2436;
+  --route1:#3fe0c5; --route2:#e8934a; --route3:#8f7ee8;
+  --storm:#ff5d5d; --storm-dim:#7a2626;
+  --text:#d7e7ec; --text-dim:#5f7f8d; --text-dimmer:#3d5865;
+  --good:#4fd67a; --warn:#e8b84a; --crit:#ff5d5d;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--abyss);color:var(--text);font-family:'Space Grotesk',sans-serif;height:100%;overflow:hidden;}
+.mono{font-family:'JetBrains Mono',monospace;}
+
+.console{
+  display:grid;
+  grid-template-rows:56px 1fr 64px;
+  grid-template-columns:1fr 320px;
+  grid-template-areas:"topbar topbar" "map side" "timeline timeline";
+  height:100vh;width:100vw;
+}
+
+.topbar{grid-area:topbar;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--grid);background:linear-gradient(180deg, var(--panel-2), var(--panel));z-index:20;}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-mark{width:26px;height:26px;border:1.5px solid var(--route1);border-radius:3px;display:flex;align-items:center;justify-content:center;}
+.brand-mark::before{content:'';width:8px;height:8px;background:var(--route1);border-radius:50%;box-shadow:0 0 8px var(--route1);animation:pulse 2.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.brand-text{line-height:1.1;}
+.brand-text .t1{font-size:13px;font-weight:700;letter-spacing:.06em;}
+.brand-text .t2{font-size:10px;color:var(--text-dim);}
+.data-badge{font-size:10px;padding:3px 9px;border-radius:20px;border:1px solid var(--grid);color:var(--text-dim);}
+.data-badge.live{border-color:var(--good);color:var(--good);}
+.data-badge.missing{border-color:var(--crit);color:var(--crit);}
+
+.map-wrap{grid-area:map;position:relative;}
+#map{width:100%;height:100%;background:var(--abyss);}
+
+.note-bar{
+  position:absolute;top:14px;left:14px;right:14px;z-index:500;
+  background:rgba(8,20,30,0.92);border:1px solid var(--grid);border-radius:6px;
+  padding:11px 15px;backdrop-filter:blur(4px);font-size:12.5px;line-height:1.4;color:var(--text-dim);
+}
+.note-bar b{color:var(--text);}
+
+.side{grid-area:side;background:var(--panel);border-left:1px solid var(--grid);overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;}
+.block{border:1px solid var(--grid-dim);border-radius:6px;padding:12px 13px;}
+.block h3{font-size:10px;letter-spacing:.08em;color:var(--text-dim);margin-bottom:10px;font-weight:600;}
+.row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:12.5px;}
+.row .k{color:var(--text-dim);}
+.row .v{font-family:'JetBrains Mono',monospace;font-weight:600;}
+
+.conf-wrap{display:flex;align-items:center;gap:14px;}
+.conf-ring{position:relative;width:74px;height:74px;flex-shrink:0;}
+.conf-ring svg{transform:rotate(-90deg);}
+.conf-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;}
+.band-tag{font-size:10px;padding:2px 8px;border-radius:3px;letter-spacing:.06em;font-weight:600;display:inline-block;}
+.band-NOMINAL{background:rgba(79,214,122,.15);color:var(--good);}
+.band-ADVISORY{background:rgba(232,184,74,.15);color:var(--warn);}
+.band-CRITICAL{background:rgba(255,93,93,.15);color:var(--crit);}
+
+.route-legend{display:flex;flex-direction:column;gap:6px;font-size:12px;}
+.route-legend .item{display:flex;align-items:center;gap:8px;}
+.swatch{width:16px;height:3px;border-radius:2px;flex-shrink:0;}
+.route-legend .item.selected{color:var(--text);font-weight:600;}
+.route-legend .item:not(.selected){color:var(--text-dim);}
+
+.log{display:flex;flex-direction:column-reverse;gap:6px;max-height:130px;overflow-y:auto;font-size:11.5px;}
+.log-entry{padding:5px 7px;border-left:2px solid var(--grid);color:var(--text-dim);}
+.log-entry.hl{border-left-color:var(--route1);color:var(--text);}
+
+.timeline{grid-area:timeline;background:var(--panel-2);border-top:1px solid var(--grid);display:flex;align-items:center;gap:14px;padding:0 20px;}
+.play-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--grid);background:transparent;color:var(--text);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.play-btn:hover{border-color:var(--route1);color:var(--route1);}
+#scrub{flex:1;accent-color:var(--route1);}
+.tl-label{font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;width:70px;flex-shrink:0;}
+
+.storm-tag{font-size:10px;padding:2px 8px;border-radius:3px;background:rgba(255,93,93,.15);color:var(--storm);letter-spacing:.05em;font-weight:600;}
+</style>
+</head>
+<body>
+<div class="console">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <div class="t1">TWINROUTE-M</div>
+        <div class="t2">Storm replan — live pipeline output</div>
+      </div>
+    </div>
+    <div id="dataBadge" class="data-badge">checking journey.json…</div>
+  </div>
+
+  <div class="map-wrap">
+    <div id="map"></div>
+    <div class="note-bar" id="noteBar">Loading voyage data produced by <b>export_journey.py</b>…</div>
+  </div>
+
+  <div class="side">
+    <div class="block">
+      <h3>TWIN CONFIDENCE</h3>
+      <div class="conf-wrap">
+        <div class="conf-ring">
+          <svg width="74" height="74" viewBox="0 0 74 74">
+            <circle cx="37" cy="37" r="30" fill="none" stroke="var(--grid)" stroke-width="7"/>
+            <circle id="confArc" cx="37" cy="37" r="30" fill="none" stroke="var(--route1)" stroke-width="7"
+                    stroke-linecap="round" stroke-dasharray="0 999" stroke-dashoffset="0"/>
+          </svg>
+          <div class="conf-num" id="confNum">—</div>
+        </div>
+        <div>
+          <span class="band-tag" id="bandTag">—</span>
+          <div class="row"><span class="k">sensor</span><span class="v" id="sSensor">—</span></div>
+          <div class="row"><span class="k">forecast</span><span class="v" id="sForecast">—</span></div>
+          <div class="row"><span class="k">model</span><span class="v" id="sModel">—</span></div>
+          <div class="row"><span class="k">decision</span><span class="v" id="sDecision">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="block">
+      <h3>ENVIRONMENT</h3>
+      <div class="row"><span class="k">Wind</span><span class="v" id="eWind">—</span></div>
+      <div class="row"><span class="k">Wave height</span><span class="v" id="eWave">—</span></div>
+      <div class="row"><span class="k">Visibility</span><span class="v" id="eVis">—</span></div>
+      <div class="row"><span class="k">Storm</span><span class="v" id="eStorm">—</span></div>
+    </div>
+
+    <div class="block">
+      <h3>CANDIDATE ROUTES</h3>
+      <div class="route-legend" id="routeLegend"></div>
+      <div class="row" style="margin-top:8px;"><span class="k">Pareto-optimal</span><span class="v" id="mPareto">—</span></div>
+    </div>
+
+    <div class="block">
+      <h3>SELECTED ROUTE PERFORMANCE</h3>
+      <div class="row"><span class="k">Fuel</span><span class="v" id="mFuel">—</span></div>
+      <div class="row"><span class="k">Time</span><span class="v" id="mTime">—</span></div>
+      <div class="row"><span class="k">Risk</span><span class="v" id="mRisk">—</span></div>
+    </div>
+
+    <div class="block" style="flex:1;">
+      <h3>EVENT LOG</h3>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <button class="play-btn" id="playBtn">▶</button>
+    <span class="tl-label" id="cycleLabel">k = 000</span>
+    <input type="range" id="scrub" min="0" max="0" value="0" step="1">
+    <span class="tl-label" id="fracLabel" style="text-align:right;">0%</span>
+  </div>
+</div>
+
+<script>
+const map = L.map('map', { zoomControl:true, attributionControl:false }).setView([15, 65], 4);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:8, minZoom:2 }).addTo(map);
+
+const ROUTE_COLORS = ['#3fe0c5', '#e8934a', '#8f7ee8', '#e85f9c', '#7ee88f'];
+
+let JOURNEY = [];
+let routePolylines = [];
+let shipMarker = null;
+let stormCircle = null;
+let originMarker = null, destMarker = null;
+let lastLoggedRoute = null, lastLoggedBand = null, lastStormActive = false;
+let playing = false, playTimer = null;
+
+function addLog(html, hl){
+  const el = document.createElement('div');
+  el.className = 'log-entry' + (hl ? ' hl' : '');
+  el.innerHTML = html;
+  document.getElementById('log').appendChild(el);
+}
+
+function fmtPct(x){ return (x*100).toFixed(0)+'%'; }
+
+function render(idx){
+  const cp = JOURNEY[idx];
+  if(!cp) return;
+
+  document.getElementById('cycleLabel').textContent = 'k = '+String(cp.cycle_index).padStart(3,'0');
+  document.getElementById('fracLabel').textContent = fmtPct(cp.frac);
+  document.getElementById('scrub').value = idx;
+
+  // --- routes: drawn exactly from routes[] in journey.json, i.e. the real
+  // output of generate_candidate_routes() at this checkpoint ---
+  routePolylines.forEach(p => map.removeLayer(p));
+  routePolylines = [];
+  const legend = document.getElementById('routeLegend');
+  legend.innerHTML = '';
+  cp.routes.forEach((wps, i) => {
+    const isSelected = (i+1) === cp.selected_route;
+    const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+    const line = L.polyline(wps, {
+      color, weight: isSelected ? 4 : 1.6,
+      opacity: isSelected ? 0.95 : 0.55,
+      dashArray: isSelected ? null : '4 5'
+    }).addTo(map);
+    routePolylines.push(line);
+
+    const item = document.createElement('div');
+    item.className = 'item' + (isSelected ? ' selected' : '');
+    item.innerHTML = `<span class="swatch" style="background:${color}"></span>Route ${i+1}${isSelected ? ' — recommended' : ''}`;
+    legend.appendChild(item);
+  });
+
+  if(!originMarker){
+    const first = cp.routes[0][0], last = cp.routes[0][cp.routes[0].length-1];
+    originMarker = L.circleMarker(first, {radius:5, color:'#fff', fillColor:'#fff', fillOpacity:1}).addTo(map).bindTooltip('Origin', {permanent:false});
+    destMarker = L.circleMarker(last, {radius:6, color:'#fff', fillColor:'transparent', weight:2}).addTo(map).bindTooltip('Destination', {permanent:false});
+    map.fitBounds(L.polyline(cp.routes.flat()).getBounds(), {padding:[40,40]});
+  }
+
+  // --- ship position: interpolated along the recommended route's own waypoints ---
+  const selWps = cp.routes[cp.selected_route - 1];
+  const shipPos = selWps[Math.min(selWps.length-1, Math.floor(cp.frac * selWps.length))];
+  if(!shipMarker){
+    shipMarker = L.circleMarker(shipPos, {radius:7, color:'#050e16', weight:2, fillColor:'#3fe0c5', fillOpacity:1}).addTo(map);
+  } else {
+    shipMarker.setLatLng(shipPos);
+  }
+
+  // --- storm: drawn only when storm_active, at the real storm_point, sized by real severity ---
+  if(cp.storm_active && cp.storm_point){
+    const radiusKm = 150 + cp.storm_severity * 350;
+    if(!stormCircle){
+      stormCircle = L.circle(cp.storm_point, {
+        radius: radiusKm*1000, color:'var(--storm)', weight:1.4,
+        fillColor:'#ff5d5d', fillOpacity: 0.10 + cp.storm_severity*0.12, dashArray:'4 4'
+      }).addTo(map);
+    } else {
+      stormCircle.setLatLng(cp.storm_point);
+      stormCircle.setRadius(radiusKm*1000);
+      stormCircle.setStyle({ fillOpacity: 0.10 + cp.storm_severity*0.12 });
+      if(!map.hasLayer(stormCircle)) stormCircle.addTo(map);
+    }
+    if(!lastStormActive){
+      addLog(`<b>Storm forming</b> near [${cp.storm_point[0].toFixed(1)}, ${cp.storm_point[1].toFixed(1)}] — severity ramping.`, true);
+      map.fitBounds(L.polyline(cp.routes.flat()).getBounds(), {padding:[40,40]});
+    }
+    lastStormActive = true;
+  } else {
+    if(stormCircle && map.hasLayer(stormCircle)) map.removeLayer(stormCircle);
+    lastStormActive = false;
+  }
+
+  // --- side panel: every number below is read straight off this checkpoint ---
+  document.getElementById('eWind').textContent = cp.wind_kt + ' kt';
+  document.getElementById('eWave').textContent = cp.wave_m + ' m';
+  document.getElementById('eVis').textContent = cp.visibility_km + ' km';
+  document.getElementById('eStorm').innerHTML = cp.storm_active
+    ? `<span class="storm-tag">ACTIVE · sev ${cp.storm_severity.toFixed(2)}</span>`
+    : '<span style="color:var(--text-dim)">none</span>';
+
+  document.getElementById('mPareto').textContent = cp.pareto_indices.map(i=>'R'+i).join(', ');
+  document.getElementById('mFuel').textContent = cp.fuel_t + ' t';
+  document.getElementById('mTime').textContent = cp.time_h + ' h';
+  document.getElementById('mRisk').textContent = cp.risk;
+
+  const conf = cp.twin_confidence, band = cp.twin_band;
+  document.getElementById('confNum').textContent = conf.toFixed(2);
+  document.getElementById('bandTag').textContent = band;
+  document.getElementById('bandTag').className = 'band-tag band-'+band;
+  const circumference = 2*Math.PI*30;
+  document.getElementById('confArc').setAttribute('stroke-dasharray', `${conf*circumference} ${circumference}`);
+  const arcColor = band==='NOMINAL' ? 'var(--good)' : (band==='CRITICAL' ? 'var(--crit)' : 'var(--warn)');
+  document.getElementById('confArc').style.stroke = arcColor;
+
+  document.getElementById('sSensor').textContent = cp.twin_subscores.sensor.toFixed(2);
+  document.getElementById('sForecast').textContent = cp.twin_subscores.forecast.toFixed(2);
+  document.getElementById('sModel').textContent = cp.twin_subscores.model.toFixed(2);
+  document.getElementById('sDecision').textContent = cp.twin_subscores.decision.toFixed(2);
+
+  if(cp.route_changed && lastLoggedRoute !== cp.selected_route){
+    addLog(`<b>Recommendation updated</b>: optimizer now selects Route ${cp.selected_route} (wind ${cp.wind_kt}kt, wave ${cp.wave_m}m, risk ${cp.risk}).`, true);
+  }
+  lastLoggedRoute = cp.selected_route;
+
+  if(band !== lastLoggedBand){
+    if(band !== 'NOMINAL'){
+      addLog(`Twin confidence dropped to <b>${conf.toFixed(2)} [${band}]</b>.`, band==='CRITICAL');
+    } else if(lastLoggedBand){
+      addLog(`Twin confidence recovered to <b>${conf.toFixed(2)} [NOMINAL]</b>.`, false);
+    }
+    lastLoggedBand = band;
+  }
+}
+
+function step(){
+  let idx = parseInt(document.getElementById('scrub').value, 10);
+  idx = Math.min(JOURNEY.length - 1, idx + 1);
+  render(idx);
+  if(idx >= JOURNEY.length - 1) togglePlay(false);
+}
+
+function togglePlay(force){
+  playing = (force !== undefined) ? force : !playing;
+  document.getElementById('playBtn').textContent = playing ? '⏸' : '▶';
+  if(playing){
+    if(parseInt(document.getElementById('scrub').value,10) >= JOURNEY.length-1){
+      document.getElementById('scrub').value = 0;
+    }
+    playTimer = setInterval(step, 450);
+  } else {
+    clearInterval(playTimer);
+  }
+}
+
+document.getElementById('playBtn').addEventListener('click', () => togglePlay());
+document.getElementById('scrub').addEventListener('input', (e) => {
+  togglePlay(false);
+  render(parseInt(e.target.value, 10));
+});
+
+async function init(){
+  const badge = document.getElementById('dataBadge');
+  const noteBar = document.getElementById('noteBar');
+  try{
+    const r = await fetch('journey.json');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    JOURNEY = await r.json();
+  } catch(e){
+    badge.textContent = 'journey.json not found — run: python export_journey.py';
+    badge.classList.add('missing');
+    noteBar.innerHTML = `<b>No voyage data loaded.</b> This page reads <span class="mono">journey.json</span>,
+      which is generated by <span class="mono">export_journey.py</span> from the real pipeline
+      (route_generator → simulator → objective_builder → optimizer → twin_health). It also needs a local
+      HTTP server (fetch() is blocked on a plain file:// page) — e.g. <span class="mono">python -m http.server</span>
+      from this folder, then open <span class="mono">http://localhost:8000/twinroute_storm_demo.html</span>.`;
+    return;
+  }
+
+  badge.textContent = JOURNEY.length + ' checkpoints · live from twin_health.py';
+  badge.classList.add('live');
+  noteBar.innerHTML = `Every route shown is the real output of <b>generate_candidate_routes()</b> at that
+    checkpoint; the storm marker is the actual <span class="mono">storm_point</span>/<span class="mono">storm_severity</span>
+    from the simulator; the confidence gauge is <span class="mono">twin_health.py</span>'s live Φhealth score.
+    Nothing on this page is scripted.`;
+
+  document.getElementById('scrub').max = JOURNEY.length - 1;
+  addLog('Voyage data loaded from journey.json.', false);
+  render(0);
+}
+
+init();
+</script>
+</body>
+</html>

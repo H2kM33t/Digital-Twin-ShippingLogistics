@@ -1,6 +1,6 @@
 """
-Export a voyage journey to JSON for the twinroute_ecdis_cape_vs_suez_demo.html
-front end to consume.
+Export a voyage journey to JSON for the twinroute_storm_demo.html front end
+to consume.
 
 This runs the real pipeline (digital_twin_generator -> route_generator ->
 simulator -> objective_builder -> optimizer -> twin_health) forward over a
@@ -8,18 +8,23 @@ voyage, exactly like adaptive_demo.run_storm_journey(), but instead of
 printing to console it records one JSON record per checkpoint:
 
   {
-    "frac":            0.0-1.0 fraction of the voyage (maps directly onto
-                        the HTML's animation timeline, which already runs
-                        on a 0-1 "frac" of its own),
-    "cycle_index":      int,
+    "frac":              0.0-1.0 fraction of the voyage (maps directly onto
+                         the HTML's animation timeline),
+    "cycle_index":       int,
     "wind_kt", "wave_m", "visibility_km": current environment readings,
-    "selected_route":   1-based index of the recommended route,
-    "route_changed":    true the first time the recommendation flips,
-    "fuel_t", "time_h", "risk":  performance of the selected route,
-    "pareto_indices":   1-based indices of Pareto-optimal candidates,
-    "twin_confidence":  0-1 scalar from twin_health.py,
-    "twin_band":        "NOMINAL" | "ADVISORY" | "CRITICAL",
-    "twin_subscores":   {"sensor", "forecast", "model", "decision"}
+    "storm_active":      bool,
+    "storm_severity":    0-1 (0 when no storm),
+    "storm_point":       [lat, lon] once the storm has formed, else null,
+    "routes":            [[[lat,lon], ...], ...] -- the ACTUAL candidate
+                         route waypoints returned by generate_candidate_routes()
+                         at this checkpoint, one polyline per candidate route,
+    "selected_route":    1-based index into "routes",
+    "route_changed":     true the first time the recommendation flips,
+    "fuel_t", "time_h", "risk": performance of the selected route,
+    "pareto_indices":    1-based indices of Pareto-optimal candidates,
+    "twin_confidence":   0-1 scalar from twin_health.py,
+    "twin_band":         "NOMINAL" | "ADVISORY" | "CRITICAL",
+    "twin_subscores":    {"sensor", "forecast", "model", "decision"}
   }
 
 Output: journey.json, written next to this script (same folder as the
@@ -130,6 +135,13 @@ def export_journey(origin="Mumbai", destination="Dubai",
             "wind_kt": round(twin.environment.weather.wind_speed, 1),
             "wave_m": round(twin.environment.ocean.wave_height, 1),
             "visibility_km": round(twin.environment.weather.visibility, 1),
+            "storm_active": storm_active,
+            "storm_severity": round(storm_severity, 3),
+            "storm_point": [round(storm_point[0], 3), round(storm_point[1], 3)] if storm_point else None,
+            "routes": [
+                [[round(wp.lat, 4), round(wp.lon, 4)] for wp in route.waypoints]
+                for route in routes
+            ],
             "selected_route": best_index + 1,
             "route_changed": route_changed,
             "fuel_t": perf["fuel"],
