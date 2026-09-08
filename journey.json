@@ -1,0 +1,1465 @@
+[
+  {
+    "frac": 0.0167,
+    "cycle_index": 1,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.22,
+    "time_h": 78.94,
+    "risk": 0.283,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.857,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.886,
+      "model": 1.0,
+      "decision": 0.636
+    }
+  },
+  {
+    "frac": 0.0333,
+    "cycle_index": 2,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.33,
+    "time_h": 77.67,
+    "risk": 0.282,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.887,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 1.0,
+      "decision": 0.651
+    }
+  },
+  {
+    "frac": 0.05,
+    "cycle_index": 3,
+    "wind_kt": 12.1,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.51,
+    "time_h": 76.48,
+    "risk": 0.28,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.886,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.997,
+      "model": 1.0,
+      "decision": 0.646
+    }
+  },
+  {
+    "frac": 0.0667,
+    "cycle_index": 4,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.39,
+    "time_h": 75.54,
+    "risk": 0.281,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.887,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.998,
+      "model": 1.0,
+      "decision": 0.649
+    }
+  },
+  {
+    "frac": 0.0833,
+    "cycle_index": 5,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.41,
+    "time_h": 74.86,
+    "risk": 0.279,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.889,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 1.0,
+      "decision": 0.662
+    }
+  },
+  {
+    "frac": 0.1,
+    "cycle_index": 6,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.1,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.31,
+    "time_h": 74.17,
+    "risk": 0.278,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.886,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.998,
+      "model": 1.0,
+      "decision": 0.642
+    }
+  },
+  {
+    "frac": 0.1167,
+    "cycle_index": 7,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.1,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.27,
+    "time_h": 73.62,
+    "risk": 0.28,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.887,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 1.0,
+      "decision": 0.647
+    }
+  },
+  {
+    "frac": 0.1333,
+    "cycle_index": 8,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.28,
+    "time_h": 73.14,
+    "risk": 0.279,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.886,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 1.0,
+      "decision": 0.645
+    }
+  },
+  {
+    "frac": 0.15,
+    "cycle_index": 9,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.35,
+    "time_h": 72.83,
+    "risk": 0.279,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.886,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.998,
+      "model": 1.0,
+      "decision": 0.645
+    }
+  },
+  {
+    "frac": 0.1667,
+    "cycle_index": 10,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.23,
+    "time_h": 72.53,
+    "risk": 0.277,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.888,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.997,
+      "model": 1.0,
+      "decision": 0.659
+    }
+  },
+  {
+    "frac": 0.1833,
+    "cycle_index": 11,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.29,
+    "time_h": 72.2,
+    "risk": 0.277,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.886,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.997,
+      "model": 1.0,
+      "decision": 0.644
+    }
+  },
+  {
+    "frac": 0.2,
+    "cycle_index": 12,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.31,
+    "time_h": 72.06,
+    "risk": 0.277,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.886,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 1.0,
+      "decision": 0.644
+    }
+  },
+  {
+    "frac": 0.2167,
+    "cycle_index": 13,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.41,
+    "time_h": 71.89,
+    "risk": 0.276,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.887,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.996,
+      "model": 1.0,
+      "decision": 0.657
+    }
+  },
+  {
+    "frac": 0.2333,
+    "cycle_index": 14,
+    "wind_kt": 12.0,
+    "wave_m": 1.3,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.45,
+    "time_h": 71.84,
+    "risk": 0.276,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.889,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.998,
+      "model": 1.0,
+      "decision": 0.66
+    }
+  },
+  {
+    "frac": 0.25,
+    "cycle_index": 15,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.43,
+    "time_h": 71.66,
+    "risk": 0.277,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.886,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.998,
+      "model": 1.0,
+      "decision": 0.641
+    }
+  },
+  {
+    "frac": 0.2667,
+    "cycle_index": 16,
+    "wind_kt": 12.0,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.31,
+    "time_h": 71.69,
+    "risk": 0.276,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.889,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.998,
+      "model": 1.0,
+      "decision": 0.66
+    }
+  },
+  {
+    "frac": 0.2833,
+    "cycle_index": 17,
+    "wind_kt": 12.1,
+    "wave_m": 1.4,
+    "visibility_km": 15.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 360.53,
+    "time_h": 71.66,
+    "risk": 0.275,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.888,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.997,
+      "model": 1.0,
+      "decision": 0.658
+    }
+  },
+  {
+    "frac": 0.3,
+    "cycle_index": 18,
+    "wind_kt": 20.0,
+    "wave_m": 3.0,
+    "visibility_km": 8.0,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 406.65,
+    "time_h": 71.75,
+    "risk": 0.581,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.637,
+    "twin_band": "ADVISORY",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.104,
+      "model": 1.0,
+      "decision": 0.471
+    }
+  },
+  {
+    "frac": 0.3167,
+    "cycle_index": 19,
+    "wind_kt": 20.8,
+    "wave_m": 3.2,
+    "visibility_km": 7.6,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 411.49,
+    "time_h": 71.86,
+    "risk": 0.642,
+    "pareto_indices": [
+      1,
+      3
+    ],
+    "twin_confidence": 0.849,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.558
+    }
+  },
+  {
+    "frac": 0.3333,
+    "cycle_index": 20,
+    "wind_kt": 21.7,
+    "wave_m": 3.5,
+    "visibility_km": 7.2,
+    "selected_route": 1,
+    "route_changed": false,
+    "fuel_t": 416.33,
+    "time_h": 71.9,
+    "risk": 0.715,
+    "pareto_indices": [
+      1,
+      3
+    ],
+    "twin_confidence": 0.804,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.259
+    }
+  },
+  {
+    "frac": 0.35,
+    "cycle_index": 21,
+    "wind_kt": 22.5,
+    "wave_m": 3.8,
+    "visibility_km": 6.8,
+    "selected_route": 3,
+    "route_changed": true,
+    "fuel_t": 547.52,
+    "time_h": 72.08,
+    "risk": 0.632,
+    "pareto_indices": [
+      1,
+      3
+    ],
+    "twin_confidence": 0.783,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.115
+    }
+  },
+  {
+    "frac": 0.3667,
+    "cycle_index": 22,
+    "wind_kt": 23.3,
+    "wave_m": 4.0,
+    "visibility_km": 6.3,
+    "selected_route": 3,
+    "route_changed": false,
+    "fuel_t": 553.8,
+    "time_h": 72.29,
+    "risk": 0.673,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.802,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.243
+    }
+  },
+  {
+    "frac": 0.3833,
+    "cycle_index": 23,
+    "wind_kt": 24.2,
+    "wave_m": 4.2,
+    "visibility_km": 5.9,
+    "selected_route": 2,
+    "route_changed": true,
+    "fuel_t": 495.48,
+    "time_h": 72.52,
+    "risk": 0.774,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.778,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.086
+    }
+  },
+  {
+    "frac": 0.4,
+    "cycle_index": 24,
+    "wind_kt": 25.0,
+    "wave_m": 4.5,
+    "visibility_km": 5.5,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 501.04,
+    "time_h": 72.78,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.819,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.357
+    }
+  },
+  {
+    "frac": 0.4167,
+    "cycle_index": 25,
+    "wind_kt": 25.8,
+    "wave_m": 4.8,
+    "visibility_km": 5.1,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 506.6,
+    "time_h": 73.06,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.815,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.331
+    }
+  },
+  {
+    "frac": 0.4333,
+    "cycle_index": 26,
+    "wind_kt": 26.7,
+    "wave_m": 5.0,
+    "visibility_km": 4.7,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 512.17,
+    "time_h": 73.34,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.91,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 1.0,
+      "decision": 0.966
+    }
+  },
+  {
+    "frac": 0.45,
+    "cycle_index": 27,
+    "wind_kt": 27.5,
+    "wave_m": 5.2,
+    "visibility_km": 4.2,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 517.74,
+    "time_h": 73.7,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2,
+      3
+    ],
+    "twin_confidence": 0.709,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 0.667,
+      "decision": 0.292
+    }
+  },
+  {
+    "frac": 0.4667,
+    "cycle_index": 28,
+    "wind_kt": 28.3,
+    "wave_m": 5.5,
+    "visibility_km": 3.8,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 523.3,
+    "time_h": 74.13,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.816,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.4833,
+    "cycle_index": 29,
+    "wind_kt": 29.2,
+    "wave_m": 5.8,
+    "visibility_km": 3.4,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 528.87,
+    "time_h": 74.53,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.816,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.5,
+    "cycle_index": 30,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 74.97,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.816,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.902,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.5167,
+    "cycle_index": 31,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 75.38,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.5333,
+    "cycle_index": 32,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 75.8,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.55,
+    "cycle_index": 33,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 76.36,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.5667,
+    "cycle_index": 34,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 76.87,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.5833,
+    "cycle_index": 35,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 77.57,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.6,
+    "cycle_index": 36,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 78.18,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.6167,
+    "cycle_index": 37,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 78.8,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.6333,
+    "cycle_index": 38,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 79.46,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.65,
+    "cycle_index": 39,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 80.11,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.6667,
+    "cycle_index": 40,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 80.88,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.6833,
+    "cycle_index": 41,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 81.53,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.7,
+    "cycle_index": 42,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 82.26,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.7167,
+    "cycle_index": 43,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 82.98,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.7333,
+    "cycle_index": 44,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 83.63,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.75,
+    "cycle_index": 45,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 84.41,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.7667,
+    "cycle_index": 46,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 85.27,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.7833,
+    "cycle_index": 47,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 85.97,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.8,
+    "cycle_index": 48,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 86.76,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.8167,
+    "cycle_index": 49,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 87.55,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.8333,
+    "cycle_index": 50,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 88.38,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.85,
+    "cycle_index": 51,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 89.22,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.8667,
+    "cycle_index": 52,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 89.93,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.8833,
+    "cycle_index": 53,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 3.0,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 90.85,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.9,
+    "cycle_index": 54,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 91.54,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.9167,
+    "cycle_index": 55,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 92.14,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.9333,
+    "cycle_index": 56,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 92.81,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.95,
+    "cycle_index": 57,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 93.48,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.9667,
+    "cycle_index": 58,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 94.2,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 0.9833,
+    "cycle_index": 59,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 94.83,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 1.0,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  },
+  {
+    "frac": 1.0,
+    "cycle_index": 60,
+    "wind_kt": 30.0,
+    "wave_m": 6.0,
+    "visibility_km": 2.9,
+    "selected_route": 2,
+    "route_changed": false,
+    "fuel_t": 534.43,
+    "time_h": 95.49,
+    "risk": 0.75,
+    "pareto_indices": [
+      1,
+      2
+    ],
+    "twin_confidence": 0.84,
+    "twin_band": "NOMINAL",
+    "twin_subscores": {
+      "sensor": 0.8,
+      "forecast": 0.999,
+      "model": 0.667,
+      "decision": 1.0
+    }
+  }
+]

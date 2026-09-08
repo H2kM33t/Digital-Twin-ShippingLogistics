@@ -34,12 +34,20 @@ def twin_state_to_digital_twin(state, origin_coords, destination_coords, max_spe
     energy = EnergyState(fuel_remaining=v["fuel_remaining_tonnes"])
     vessel = VesselState(navigation=nav, propulsion=prop, energy=energy)
 
-    weather = WeatherState(wind_speed=e["wind_speed_knots"], wind_dir=e["wind_direction_deg"])
+    weather = WeatherState(
+        wind_speed=e["wind_speed_knots"],
+        wind_dir=e["wind_direction_deg"],
+        air_temp=e["air_temperature_c"],
+        visibility=e["visibility_km"],
+    )
+
     ocean = OceanState(
         current_speed=e["ocean_current_speed_knots"],
         current_dir=e["ocean_current_direction_deg"],
         wave_height=e["wave_height_m"],
+        wave_period=e["wave_period_s"],
     )
+
     env = EnvironmentState(weather=weather, ocean=ocean)
 
     mission = MissionState(origin=origin_coords, destination=destination_coords,
@@ -49,7 +57,7 @@ def twin_state_to_digital_twin(state, origin_coords, destination_coords, max_spe
 
 
 def build_sample_twin():
-    """Now powered by the realistic Digital Twin generator instead of hand-typed numbers."""
+    """Powered by the realistic Digital Twin generator instead of hand-typed numbers."""
     state = generate_stepped_state(origin="Mumbai", destination="Dubai", scenario="normal", steps=10)
     return twin_state_to_digital_twin(
         state,

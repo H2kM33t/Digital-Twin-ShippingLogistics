@@ -1,14 +1,6 @@
 import numpy as np
 
 
-def normalize(values, value):
-    """Scale a value to 0-1 range relative to a list of values."""
-    min_v, max_v = min(values), max(values)
-    if max_v == min_v:
-        return 0.0
-    return (value - min_v) / (max_v - min_v)
-
-
 # ---------------------------------------------------------------------
 # Step 1: Pareto Dominance Filtering (spec Ch 8.5)
 # ---------------------------------------------------------------------
