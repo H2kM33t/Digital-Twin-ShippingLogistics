@@ -42,6 +42,9 @@ html,body{background:var(--abyss);color:var(--text);font-family:'Space Grotesk',
 
 .map-wrap{grid-area:map;position:relative;}
 #map{width:100%;height:100%;background:var(--abyss);}
+/* OSM tiles are plain light basemap; invert+hue-rotate to approximate the
+   original dark-console look without needing a keyed dark-tile provider. */
+#map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9) saturate(0.6);}
 
 .note-bar{
   position:absolute;top:14px;left:14px;right:14px;z-index:500;
@@ -71,6 +74,12 @@ html,body{background:var(--abyss);color:var(--text);font-family:'Space Grotesk',
 .swatch{width:16px;height:3px;border-radius:2px;flex-shrink:0;}
 .route-legend .item.selected{color:var(--text);font-weight:600;}
 .route-legend .item:not(.selected){color:var(--text-dim);}
+.pareto-tag{font-size:9px;padding:1px 5px;border-radius:3px;background:rgba(63,224,197,.15);color:var(--route1);letter-spacing:.04em;font-weight:600;}
+
+.cmp-table{width:100%;border-collapse:collapse;margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:11px;}
+.cmp-table td{padding:3px 4px;border-top:1px solid var(--grid-dim);color:var(--text-dim);}
+.cmp-table tr.sel td{color:var(--text);font-weight:600;}
+.cmp-table tr:first-child td{border-top:none;}
 
 .log{display:flex;flex-direction:column-reverse;gap:6px;max-height:130px;overflow-y:auto;font-size:11.5px;}
 .log-entry{padding:5px 7px;border-left:2px solid var(--grid);color:var(--text-dim);}
@@ -137,6 +146,7 @@ html,body{background:var(--abyss);color:var(--text);font-family:'Space Grotesk',
       <h3>CANDIDATE ROUTES</h3>
       <div class="route-legend" id="routeLegend"></div>
       <div class="row" style="margin-top:8px;"><span class="k">Pareto-optimal</span><span class="v" id="mPareto">—</span></div>
+      <table class="cmp-table" id="cmpTable"><tbody id="cmpTableBody"></tbody></table>
     </div>
 
     <div class="block">
@@ -162,7 +172,9 @@ html,body{background:var(--abyss);color:var(--text);font-family:'Space Grotesk',
 
 <script>
 const map = L.map('map', { zoomControl:true, attributionControl:false }).setView([15, 65], 4);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:8, minZoom:2 }).addTo(map);
+// Plain OpenStreetMap tiles: no API key, ever. Dark look is done with a CSS
+// filter on the tile pane instead of a paid/keyed dark-tile provider.
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:8, minZoom:2 }).addTo(map);
 
 const ROUTE_COLORS = ['#3fe0c5', '#e8934a', '#8f7ee8', '#e85f9c', '#7ee88f'];
 
@@ -172,7 +184,8 @@ let shipMarker = null;
 let stormCircle = null;
 let originMarker = null, destMarker = null;
 let lastLoggedRoute = null, lastLoggedBand = null, lastStormActive = false;
-let playing = false, playTimer = null;
+let playing = false, rafId = null, startTs = null, playFracGlobal = 0, currentIdx = -1;
+let currentSelWps = null, currentCum = null;
 
 function addLog(html, hl){
   const el = document.createElement('div');
@@ -183,7 +196,36 @@ function addLog(html, hl){
 
 function fmtPct(x){ return (x*100).toFixed(0)+'%'; }
 
-function render(idx){
+// --- Smooth ship motion: instead of snapping to one of a route's ~6-20
+// waypoints per checkpoint (which is what made the ship look like it was
+// teleporting), interpolate its position by actual distance along the
+// currently-recommended route's polyline. distAlong() builds a cumulative
+// distance table for a set of waypoints (using Leaflet's real haversine
+// distanceTo); posAlongCum() then finds the point at fraction t of that
+// total distance. Recomputed only when the recommended route's waypoints
+// change (a new checkpoint), not every animation frame.
+function distAlong(wps){
+  const cum = [0];
+  for(let i=1;i<wps.length;i++){
+    cum.push(cum[i-1] + L.latLng(wps[i-1]).distanceTo(L.latLng(wps[i])));
+  }
+  return cum;
+}
+function posAlongCum(wps, cum, t){
+  const total = cum[cum.length-1];
+  if(wps.length===1 || total===0) return wps[0];
+  const target = Math.max(0, Math.min(1, t)) * total;
+  for(let i=1;i<cum.length;i++){
+    if(target<=cum[i]){
+      const segFrac = (target-cum[i-1])/(cum[i]-cum[i-1] || 1);
+      const a = wps[i-1], b = wps[i];
+      return [a[0]+(b[0]-a[0])*segFrac, a[1]+(b[1]-a[1])*segFrac];
+    }
+  }
+  return wps[wps.length-1];
+}
+
+function renderCheckpoint(idx){
   const cp = JOURNEY[idx];
   if(!cp) return;
 
@@ -199,19 +241,38 @@ function render(idx){
   legend.innerHTML = '';
   cp.routes.forEach((wps, i) => {
     const isSelected = (i+1) === cp.selected_route;
+    const isPareto = cp.pareto_indices.includes(i+1);
     const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
     const line = L.polyline(wps, {
       color, weight: isSelected ? 4 : 1.6,
-      opacity: isSelected ? 0.95 : 0.55,
+      opacity: isSelected ? 0.95 : (isPareto ? 0.75 : 0.55),
       dashArray: isSelected ? null : '4 5'
     }).addTo(map);
     routePolylines.push(line);
 
     const item = document.createElement('div');
     item.className = 'item' + (isSelected ? ' selected' : '');
-    item.innerHTML = `<span class="swatch" style="background:${color}"></span>Route ${i+1}${isSelected ? ' — recommended' : ''}`;
+    item.innerHTML = `<span class="swatch" style="background:${color}"></span>Route ${i+1}${isSelected ? ' — recommended' : ''}${isPareto ? ' <span class="pareto-tag">Pareto</span>' : ''}`;
     legend.appendChild(item);
   });
+
+  // --- comparison table: simulator.py's real fuel/time/risk for EVERY
+  // candidate this checkpoint (routes_performance), not just the winner ---
+  const cmpBody = document.getElementById('cmpTableBody');
+  cmpBody.innerHTML = '';
+  if(cp.routes_performance){
+    const header = document.createElement('tr');
+    header.innerHTML = `<td></td><td>fuel(t)</td><td>time(h)</td><td>risk</td>`;
+    cmpBody.appendChild(header);
+    cp.routes_performance.forEach((p, i) => {
+      const isSelected = (i+1) === cp.selected_route;
+      const tr = document.createElement('tr');
+      if(isSelected) tr.className = 'sel';
+      const color = ROUTE_COLORS[i % ROUTE_COLORS.length];
+      tr.innerHTML = `<td style="color:${color}">R${i+1}</td><td>${p.fuel}</td><td>${p.time}</td><td>${p.risk}</td>`;
+      cmpBody.appendChild(tr);
+    });
+  }
 
   if(!originMarker){
     const first = cp.routes[0][0], last = cp.routes[0][cp.routes[0].length-1];
@@ -220,14 +281,10 @@ function render(idx){
     map.fitBounds(L.polyline(cp.routes.flat()).getBounds(), {padding:[40,40]});
   }
 
-  // --- ship position: interpolated along the recommended route's own waypoints ---
-  const selWps = cp.routes[cp.selected_route - 1];
-  const shipPos = selWps[Math.min(selWps.length-1, Math.floor(cp.frac * selWps.length))];
-  if(!shipMarker){
-    shipMarker = L.circleMarker(shipPos, {radius:7, color:'#050e16', weight:2, fillColor:'#3fe0c5', fillOpacity:1}).addTo(map);
-  } else {
-    shipMarker.setLatLng(shipPos);
-  }
+  // Cache the recommended route's waypoints + distance table for smooth,
+  // continuous ship interpolation in updateShip() every animation frame.
+  currentSelWps = cp.routes[cp.selected_route - 1];
+  currentCum = distAlong(currentSelWps);
 
   // --- storm: drawn only when storm_active, at the real storm_point, sized by real severity ---
   if(cp.storm_active && cp.storm_point){
@@ -245,11 +302,17 @@ function render(idx){
     }
     if(!lastStormActive){
       addLog(`<b>Storm forming</b> near [${cp.storm_point[0].toFixed(1)}, ${cp.storm_point[1].toFixed(1)}] — severity ramping.`, true);
-      map.fitBounds(L.polyline(cp.routes.flat()).getBounds(), {padding:[40,40]});
+      // Zoom into the storm area (not the whole route) so the small
+      // route deviation between candidates is actually visible on screen.
+      map.fitBounds(L.latLng(cp.storm_point).toBounds(radiusKm*2*1000), {padding:[60,60]});
     }
     lastStormActive = true;
   } else {
     if(stormCircle && map.hasLayer(stormCircle)) map.removeLayer(stormCircle);
+    if(lastStormActive){
+      // Storm cleared — zoom back out to the full route.
+      map.fitBounds(L.polyline(cp.routes.flat()).getBounds(), {padding:[40,40]});
+    }
     lastStormActive = false;
   }
 
@@ -295,30 +358,77 @@ function render(idx){
   }
 }
 
-function step(){
-  let idx = parseInt(document.getElementById('scrub').value, 10);
-  idx = Math.min(JOURNEY.length - 1, idx + 1);
-  render(idx);
-  if(idx >= JOURNEY.length - 1) togglePlay(false);
+// Called every animation frame with the continuous 0-1 voyage fraction:
+// moves the ship marker smoothly along the cached route, independent of
+// how coarse the underlying journey.json checkpoints are.
+function updateShip(playFrac){
+  if(!currentSelWps) return;
+  const pos = posAlongCum(currentSelWps, currentCum, playFrac);
+  if(!shipMarker){
+    shipMarker = L.circleMarker(pos, {radius:7, color:'#050e16', weight:2, fillColor:'#3fe0c5', fillOpacity:1}).addTo(map);
+  } else {
+    shipMarker.setLatLng(pos);
+  }
+}
+
+function resetVoyageState(){
+  lastLoggedRoute = null; lastLoggedBand = null; lastStormActive = false;
+  if(stormCircle){ map.removeLayer(stormCircle); stormCircle = null; }
+  document.getElementById('log').innerHTML = '';
+  addLog('Voyage restarted.', false);
+}
+
+// Jump directly to a checkpoint (used by the scrubber and arrow keys) —
+// no animation, just render that exact state.
+function seekTo(idx){
+  idx = Math.max(0, Math.min(JOURNEY.length-1, idx));
+  playFracGlobal = idx / JOURNEY.length;
+  renderCheckpoint(idx);
+  currentIdx = idx;
+  updateShip(playFracGlobal);
+}
+
+const TOTAL_MS = 45000; // full voyage playback duration (slowed down so the storm reroute is easier to follow)
+
+function animate(ts){
+  if(startTs === null) startTs = ts - playFracGlobal*TOTAL_MS;
+  let playFrac = (ts - startTs) / TOTAL_MS;
+  if(playFrac >= 1){
+    startTs = ts;
+    playFrac = 0;
+    resetVoyageState();
+    currentIdx = -1; // force renderCheckpoint(0) below even though idx repeats
+  }
+  playFracGlobal = playFrac;
+
+  const idx = Math.min(JOURNEY.length-1, Math.floor(playFrac*JOURNEY.length));
+  if(idx !== currentIdx){ renderCheckpoint(idx); currentIdx = idx; }
+  updateShip(playFrac); // every frame — this is what makes the motion smooth
+
+  if(playing) rafId = requestAnimationFrame(animate);
 }
 
 function togglePlay(force){
   playing = (force !== undefined) ? force : !playing;
   document.getElementById('playBtn').textContent = playing ? '⏸' : '▶';
   if(playing){
-    if(parseInt(document.getElementById('scrub').value,10) >= JOURNEY.length-1){
-      document.getElementById('scrub').value = 0;
-    }
-    playTimer = setInterval(step, 450);
-  } else {
-    clearInterval(playTimer);
+    startTs = null; // animate() recomputes this from playFracGlobal so play resumes, not restarts
+    rafId = requestAnimationFrame(animate);
+  } else if(rafId){
+    cancelAnimationFrame(rafId);
   }
 }
 
 document.getElementById('playBtn').addEventListener('click', () => togglePlay());
 document.getElementById('scrub').addEventListener('input', (e) => {
   togglePlay(false);
-  render(parseInt(e.target.value, 10));
+  seekTo(parseInt(e.target.value, 10));
+});
+document.addEventListener('keydown', (e) => {
+  if(e.target.tagName === 'INPUT') return;
+  if(e.code === 'Space'){ e.preventDefault(); togglePlay(); }
+  else if(e.code === 'ArrowRight'){ togglePlay(false); seekTo(currentIdx+1); }
+  else if(e.code === 'ArrowLeft'){ togglePlay(false); seekTo(currentIdx-1); }
 });
 
 async function init(){
@@ -348,7 +458,7 @@ async function init(){
 
   document.getElementById('scrub').max = JOURNEY.length - 1;
   addLog('Voyage data loaded from journey.json.', false);
-  render(0);
+  seekTo(0);
 }
 
 init();

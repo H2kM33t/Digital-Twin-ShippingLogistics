@@ -50,7 +50,8 @@ def compute_pressures(twin) -> WeightPressures:
     return WeightPressures(fuel_pressure=fuel_pressure, weather_severity=weather_severity)
 
 
-def build_adaptive_weights(twin, base_weights: dict = None, beta_fuel: float = 0.5, beta_risk: float = 0.6) -> dict:
+def build_adaptive_weights(twin, base_weights: dict = None, beta_fuel: float = 0.5, beta_risk: float = 0.6,
+                            extra_risk_pressure: float = 0.0) -> dict:
     """
     Compute a mission-conditional {fuel, time, risk} weight vector.
 
@@ -58,16 +59,27 @@ def build_adaptive_weights(twin, base_weights: dict = None, beta_fuel: float = 0
     - Risk weight rises as weather_severity rises (rough seas/poor visibility -> prioritize safety)
     - Time absorbs the shift so it's the objective de-prioritized under pressure
     - Result is renormalized to sum to 1
+
+    extra_risk_pressure: an additional 0-1 risk-pressure signal from a
+    source outside weather -- e.g. a security/geopolitical advisory
+    severity (SECURITY_RISK_ZONE exposure in the Suez/Cape scenario).
+    The Adaptive Objective Builder's job (spec Ch 5.5) is to shift
+    weight toward safety whenever mission risk rises, regardless of
+    which subsystem detected it; this is combined with weather_severity
+    via max() rather than added, since both represent the same
+    underlying "how much should risk-avoidance dominate right now"
+    signal and shouldn't double-count if both happen to be elevated.
     """
     if base_weights is None:
         base_weights = BASE_WEIGHTS
 
     pressures = compute_pressures(twin)
+    risk_pressure = max(pressures.weather_severity, extra_risk_pressure)
 
     fuel_w = base_weights["fuel"] + beta_fuel * pressures.fuel_pressure
-    risk_w = base_weights["risk"] + beta_risk * pressures.weather_severity
+    risk_w = base_weights["risk"] + beta_risk * risk_pressure
     time_w = max(0.05, base_weights["time"] - beta_fuel * pressures.fuel_pressure * 0.5
-                 - beta_risk * pressures.weather_severity * 0.5)
+                 - beta_risk * risk_pressure * 0.5)
 
     total = fuel_w + time_w + risk_w
     weights = {

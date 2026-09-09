@@ -34,9 +34,9 @@ Digital Twin in Shipping Logistics/
 
 **models.py** — Defines core data structures using Python dataclasses: VesselState, EnvironmentState, MissionState, Waypoint, Route, and the combined DigitalTwin object.
 
-**route_generator.py** — Generates 3 candidate routes between origin and destination: a direct route and two detour routes (north/south).
+**route_generator.py** — Generates 3 candidate routes between origin and destination: a direct route and two detour routes (north/south), curving dynamically away from a storm point when one is active. Also provides `generate_longhaul_routes()`: two FIXED, real-world route geometries between Rotterdam and Singapore — Suez Canal vs. Cape of Good Hope — threaded through actual navigable pinch points (Gibraltar, Sicilian Channel, Suez, Bab-el-Mandeb, Cape Point, Agulhas). Unlike the storm case, neither geometry deforms; which one wins is purely a simulator/optimizer decision.
 
-**simulator.py** — Calculates distance, fuel consumption, ETA, and risk per route, with per-route multipliers so different routes reflect meaningfully different conditions.
+**simulator.py** — Calculates distance, fuel consumption, ETA, and risk per route, with per-route multipliers so different routes reflect meaningfully different conditions. Risk has two independent, route-shape-aware sources: `route_storm_exposure()` (how close a route's waypoints pass to a storm center, with radius falloff) and `route_security_exposure()` (what fraction of a route's waypoints fall inside a fixed geographic risk corridor, e.g. the Red Sea / Bab-el-Mandeb box used for the Suez-vs-Cape scenario) — so a route only takes a risk penalty it actually earns by its geometry, not a flat per-route multiplier.
 
 **optimizer.py** — Two-stage decision process: (1) Pareto dominance filtering removes routes strictly worse than another route on every metric; (2) TOPSIS ranking scores the remaining routes by closeness to an ideal solution. Based on Chapters 8.5 and 10.1 of the TADIF specification.
 
@@ -48,13 +48,20 @@ Digital Twin in Shipping Logistics/
 
 **adaptive_demo.py** — The centerpiece adaptive demo. Generates a realistic "normal" voyage state, evaluates all routes, then generates a "storm" state (extreme_weather scenario) and re-evaluates. Prints a before/after comparison and reports whether the recommended route changed, then visualizes both scenarios. Also includes `run_storm_journey()`, which steps a voyage forward continuously through a building storm.
 
-**objective_builder.py** — Adaptive Objective Builder (Phi_weight, TADIF Ch 5.5). Derives fuel/time/risk optimizer weights from the current mission state (low fuel, rough weather, poor visibility) instead of using fixed weights, with `explain_weights()` for a human-readable explanation of why weights shifted.
+**objective_builder.py** — Adaptive Objective Builder (Phi_weight, TADIF Ch 5.5). Derives fuel/time/risk optimizer weights from the current mission state (low fuel, rough weather, poor visibility) instead of using fixed weights, with `explain_weights()` for a human-readable explanation of why weights shifted. `build_adaptive_weights()` also accepts an `extra_risk_pressure` signal from outside weather (e.g. a security/geopolitical advisory severity), combined with weather-driven pressure via `max()` so both express the same "how much should safety dominate right now" signal without double-counting.
 
 **twin_health.py** — Digital Twin health monitor (Phi_health, TADIF Ch 5.10 + 12). Combines sensor/forecast/model/decision confidence sub-scores into one 0-1 confidence value and a NOMINAL/ADVISORY/CRITICAL escalation band. The decision sub-score is computed properly from real TOPSIS scores; the other three are documented proxies standing in for spec components (Kalman filter, PINN, Monte Carlo ensemble) this mini project doesn't implement.
 
-**export_journey.py** — Runs the full pipeline (digital_twin_generator → route_generator → simulator → objective_builder → optimizer → twin_health) forward over a simulated voyage through a building storm, and writes one JSON record per checkpoint — including the actual candidate route waypoints, storm location/severity, and twin_health output — to `journey.json`.
+**export_journey.py** — Two export functions, both running the real pipeline forward through a checkpoint loop and writing one JSON record per checkpoint:
+- `export_journey()` — digital_twin_generator → route_generator → simulator → objective_builder → optimizer → twin_health, forward over a simulated voyage through a building storm. Writes `journey.json` (candidate route waypoints, storm location/severity, per-route `routes_performance` fuel/time/risk for every candidate, and twin_health output).
+- `export_longhaul_journey()` — route_generator's `generate_longhaul_routes()` (fixed Suez/Cape geometries) → simulator → objective_builder → optimizer → twin_health, forward over the Rotterdam → Singapore voyage while a security-risk advisory in the Red Sea corridor ramps up from 0 to 1 over a configurable window. Writes `journey_suez_cape.json`, with the same record shape plus `route_names`, `security_risk_active`, and `security_risk_severity`. The checkpoint where `route_changed` first flips true is the actual, non-scripted moment the optimizer switches its recommendation from Suez to Cape.
 
-**twinroute_storm_demo.html** — Browser playback of `journey.json`. Draws the real candidate routes and storm location for each checkpoint, animates the ship along the recommended route, and shows the live confidence gauge and event log as the recommendation changes. Needs a local HTTP server (`python -m http.server`) since `fetch()` is blocked on a plain `file://` page.
+Both run when the script is executed directly (`python export_journey.py`).
+
+**twinroute_storm_demo.html** — Browser playback of `journey.json`, entirely data-driven (no scripted narrative anywhere in this one — every number on screen comes from a checkpoint record). Draws the real candidate routes and storm location for each checkpoint, animates the ship along the recommended route, tags Pareto-optimal candidates in the route legend, and shows a live per-route fuel/time/risk comparison table built from `routes_performance` — simulator.py's actual output for every candidate, not just the one the optimizer picked. Also shows the live confidence gauge and event log as the recommendation changes, with a scrubber, play/pause, auto-restart on reaching the end, and space/arrow-key playback controls. Needs a local HTTP server (`python -m http.server`) since `fetch()` is blocked on a plain `file://` page.
+- The candidate-route avoidance bulge (`generate_avoidance_route()`) is real but geographically small (~150–300km) relative to the full voyage span, so the map zooms into the storm's neighborhood the moment it forms — instead of staying zoomed out to the whole route — so the deviation between candidate routes is actually visible on screen; it zooms back out once the storm clears. Playback is 45s end-to-end (was 30s) so the storm ramp-up and reroute aren't over before you can see them.
+
+**twinroute_ecdis_cape_vs_suez_demo.html** — Browser playback of `journey_suez_cape.json`, styled as an ECDIS-style navigation console. The Suez and Cape route geometries drawn on the map are the same fixed waypoint lists `route_generator.py` uses to build the candidates; the on-screen replan moment, caption phases, confidence gauges, and event log are all timed off the real checkpoint where the loaded journey data shows `route_changed` (falling back to a hand-picked fraction only if the JSON fails to load, e.g. opened without a local server). Also overlays genuinely live sea-state data from the free Open-Meteo API along the route. Needs a local HTTP server, same as the storm demo.
 
 ---
 
@@ -98,6 +105,12 @@ python adaptive_demo.py
 python export_journey.py
 python -m http.server 8000
 # then open http://localhost:8000/twinroute_storm_demo.html
+
+### Suez vs. Cape of Good Hope ECDIS demo (real algorithm output, not scripted)
+python export_journey.py
+# (writes both journey.json and journey_suez_cape.json)
+python -m http.server 8000
+# then open http://localhost:8000/twinroute_ecdis_cape_vs_suez_demo.html
 
 ### Example output (adaptive_demo.py)
 
@@ -147,6 +160,7 @@ Ensure models.py contains full class definitions and sits in the same folder as 
 [x] Adaptive re-routing demo (storm before/after comparison)
 [x] Twin health / confidence scoring (twin_health.py)
 [x] Journey export + browser storm-replan demo (export_journey.py, twinroute_storm_demo.html)
+[x] Suez vs. Cape of Good Hope security-risk scenario, real algorithm output (generate_longhaul_routes(), route_security_exposure(), export_longhaul_journey(), twinroute_ecdis_cape_vs_suez_demo.html)
 [ ] Real Monte Carlo / CVaR risk quantification
 [ ] Continual learning / online model adaptation
 [ ] Graph-based environment representation

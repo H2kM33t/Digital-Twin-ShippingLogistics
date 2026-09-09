@@ -93,6 +93,23 @@
     "fuel_t": 360.22,
     "time_h": 78.94,
     "risk": 0.283,
+    "routes_performance": [
+      {
+        "fuel": 360.22,
+        "time": 78.94,
+        "risk": 0.283
+      },
+      {
+        "fuel": 414.25,
+        "time": 78.94,
+        "risk": 0.339
+      },
+      {
+        "fuel": 468.29,
+        "time": 78.94,
+        "risk": 0.254
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -200,6 +217,23 @@
     "fuel_t": 360.33,
     "time_h": 77.67,
     "risk": 0.282,
+    "routes_performance": [
+      {
+        "fuel": 360.33,
+        "time": 77.67,
+        "risk": 0.282
+      },
+      {
+        "fuel": 414.38,
+        "time": 77.67,
+        "risk": 0.338
+      },
+      {
+        "fuel": 468.43,
+        "time": 77.67,
+        "risk": 0.254
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -307,6 +341,23 @@
     "fuel_t": 360.51,
     "time_h": 76.48,
     "risk": 0.28,
+    "routes_performance": [
+      {
+        "fuel": 360.51,
+        "time": 76.48,
+        "risk": 0.28
+      },
+      {
+        "fuel": 414.59,
+        "time": 76.48,
+        "risk": 0.336
+      },
+      {
+        "fuel": 468.66,
+        "time": 76.48,
+        "risk": 0.252
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -414,6 +465,23 @@
     "fuel_t": 360.39,
     "time_h": 75.54,
     "risk": 0.281,
+    "routes_performance": [
+      {
+        "fuel": 360.39,
+        "time": 75.54,
+        "risk": 0.281
+      },
+      {
+        "fuel": 414.45,
+        "time": 75.54,
+        "risk": 0.337
+      },
+      {
+        "fuel": 468.5,
+        "time": 75.54,
+        "risk": 0.253
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -521,6 +589,23 @@
     "fuel_t": 360.41,
     "time_h": 74.86,
     "risk": 0.279,
+    "routes_performance": [
+      {
+        "fuel": 360.41,
+        "time": 74.86,
+        "risk": 0.279
+      },
+      {
+        "fuel": 414.47,
+        "time": 74.86,
+        "risk": 0.335
+      },
+      {
+        "fuel": 468.53,
+        "time": 74.86,
+        "risk": 0.252
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -628,6 +713,23 @@
     "fuel_t": 360.31,
     "time_h": 74.17,
     "risk": 0.278,
+    "routes_performance": [
+      {
+        "fuel": 360.31,
+        "time": 74.17,
+        "risk": 0.278
+      },
+      {
+        "fuel": 414.36,
+        "time": 74.17,
+        "risk": 0.334
+      },
+      {
+        "fuel": 468.41,
+        "time": 74.17,
+        "risk": 0.25
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -735,6 +837,23 @@
     "fuel_t": 360.27,
     "time_h": 73.62,
     "risk": 0.28,
+    "routes_performance": [
+      {
+        "fuel": 360.27,
+        "time": 73.62,
+        "risk": 0.28
+      },
+      {
+        "fuel": 414.31,
+        "time": 73.62,
+        "risk": 0.336
+      },
+      {
+        "fuel": 468.35,
+        "time": 73.62,
+        "risk": 0.252
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -842,6 +961,23 @@
     "fuel_t": 360.28,
     "time_h": 73.14,
     "risk": 0.279,
+    "routes_performance": [
+      {
+        "fuel": 360.28,
+        "time": 73.14,
+        "risk": 0.279
+      },
+      {
+        "fuel": 414.33,
+        "time": 73.14,
+        "risk": 0.335
+      },
+      {
+        "fuel": 468.37,
+        "time": 73.14,
+        "risk": 0.251
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -949,6 +1085,23 @@
     "fuel_t": 360.35,
     "time_h": 72.83,
     "risk": 0.279,
+    "routes_performance": [
+      {
+        "fuel": 360.35,
+        "time": 72.83,
+        "risk": 0.279
+      },
+      {
+        "fuel": 414.41,
+        "time": 72.83,
+        "risk": 0.335
+      },
+      {
+        "fuel": 468.46,
+        "time": 72.83,
+        "risk": 0.251
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1056,6 +1209,23 @@
     "fuel_t": 360.23,
     "time_h": 72.53,
     "risk": 0.277,
+    "routes_performance": [
+      {
+        "fuel": 360.23,
+        "time": 72.53,
+        "risk": 0.277
+      },
+      {
+        "fuel": 414.26,
+        "time": 72.53,
+        "risk": 0.333
+      },
+      {
+        "fuel": 468.29,
+        "time": 72.53,
+        "risk": 0.25
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1163,6 +1333,23 @@
     "fuel_t": 360.29,
     "time_h": 72.2,
     "risk": 0.277,
+    "routes_performance": [
+      {
+        "fuel": 360.29,
+        "time": 72.2,
+        "risk": 0.277
+      },
+      {
+        "fuel": 414.33,
+        "time": 72.2,
+        "risk": 0.332
+      },
+      {
+        "fuel": 468.38,
+        "time": 72.2,
+        "risk": 0.249
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1270,6 +1457,23 @@
     "fuel_t": 360.31,
     "time_h": 72.06,
     "risk": 0.277,
+    "routes_performance": [
+      {
+        "fuel": 360.31,
+        "time": 72.06,
+        "risk": 0.277
+      },
+      {
+        "fuel": 414.36,
+        "time": 72.06,
+        "risk": 0.332
+      },
+      {
+        "fuel": 468.41,
+        "time": 72.06,
+        "risk": 0.249
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1377,6 +1581,23 @@
     "fuel_t": 360.41,
     "time_h": 71.89,
     "risk": 0.276,
+    "routes_performance": [
+      {
+        "fuel": 360.41,
+        "time": 71.89,
+        "risk": 0.276
+      },
+      {
+        "fuel": 414.47,
+        "time": 71.89,
+        "risk": 0.332
+      },
+      {
+        "fuel": 468.53,
+        "time": 71.89,
+        "risk": 0.249
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1484,6 +1705,23 @@
     "fuel_t": 360.45,
     "time_h": 71.84,
     "risk": 0.276,
+    "routes_performance": [
+      {
+        "fuel": 360.45,
+        "time": 71.84,
+        "risk": 0.276
+      },
+      {
+        "fuel": 414.51,
+        "time": 71.84,
+        "risk": 0.331
+      },
+      {
+        "fuel": 468.58,
+        "time": 71.84,
+        "risk": 0.249
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1591,6 +1829,23 @@
     "fuel_t": 360.43,
     "time_h": 71.66,
     "risk": 0.277,
+    "routes_performance": [
+      {
+        "fuel": 360.43,
+        "time": 71.66,
+        "risk": 0.277
+      },
+      {
+        "fuel": 414.5,
+        "time": 71.66,
+        "risk": 0.333
+      },
+      {
+        "fuel": 468.56,
+        "time": 71.66,
+        "risk": 0.249
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1698,6 +1953,23 @@
     "fuel_t": 360.31,
     "time_h": 71.69,
     "risk": 0.276,
+    "routes_performance": [
+      {
+        "fuel": 360.31,
+        "time": 71.69,
+        "risk": 0.276
+      },
+      {
+        "fuel": 414.35,
+        "time": 71.69,
+        "risk": 0.331
+      },
+      {
+        "fuel": 468.4,
+        "time": 71.69,
+        "risk": 0.249
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1805,6 +2077,23 @@
     "fuel_t": 360.53,
     "time_h": 71.66,
     "risk": 0.275,
+    "routes_performance": [
+      {
+        "fuel": 360.53,
+        "time": 71.66,
+        "risk": 0.275
+      },
+      {
+        "fuel": 414.61,
+        "time": 71.66,
+        "risk": 0.33
+      },
+      {
+        "fuel": 468.69,
+        "time": 71.66,
+        "risk": 0.248
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -1915,6 +2204,23 @@
     "fuel_t": 406.65,
     "time_h": 71.75,
     "risk": 0.581,
+    "routes_performance": [
+      {
+        "fuel": 406.65,
+        "time": 71.75,
+        "risk": 0.581
+      },
+      {
+        "fuel": 467.64,
+        "time": 71.75,
+        "risk": 0.697
+      },
+      {
+        "fuel": 528.64,
+        "time": 71.75,
+        "risk": 0.523
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -2025,6 +2331,23 @@
     "fuel_t": 411.49,
     "time_h": 71.86,
     "risk": 0.642,
+    "routes_performance": [
+      {
+        "fuel": 411.49,
+        "time": 71.86,
+        "risk": 0.642
+      },
+      {
+        "fuel": 473.21,
+        "time": 71.86,
+        "risk": 0.76
+      },
+      {
+        "fuel": 534.93,
+        "time": 71.86,
+        "risk": 0.571
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -2135,6 +2458,23 @@
     "fuel_t": 416.33,
     "time_h": 71.9,
     "risk": 0.715,
+    "routes_performance": [
+      {
+        "fuel": 416.33,
+        "time": 71.9,
+        "risk": 0.715
+      },
+      {
+        "fuel": 478.78,
+        "time": 71.9,
+        "risk": 0.788
+      },
+      {
+        "fuel": 541.23,
+        "time": 71.9,
+        "risk": 0.612
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -2245,6 +2585,23 @@
     "fuel_t": 547.52,
     "time_h": 72.08,
     "risk": 0.632,
+    "routes_performance": [
+      {
+        "fuel": 421.17,
+        "time": 72.08,
+        "risk": 0.788
+      },
+      {
+        "fuel": 484.34,
+        "time": 72.08,
+        "risk": 0.793
+      },
+      {
+        "fuel": 547.52,
+        "time": 72.08,
+        "risk": 0.632
+      }
+    ],
     "pareto_indices": [
       1,
       3
@@ -2355,6 +2712,23 @@
     "fuel_t": 553.8,
     "time_h": 72.29,
     "risk": 0.673,
+    "routes_performance": [
+      {
+        "fuel": 426.01,
+        "time": 72.29,
+        "risk": 0.861
+      },
+      {
+        "fuel": 489.91,
+        "time": 72.29,
+        "risk": 0.788
+      },
+      {
+        "fuel": 553.8,
+        "time": 72.29,
+        "risk": 0.673
+      }
+    ],
     "pareto_indices": [
       1,
       2,
@@ -2466,6 +2840,23 @@
     "fuel_t": 495.48,
     "time_h": 72.52,
     "risk": 0.774,
+    "routes_performance": [
+      {
+        "fuel": 430.85,
+        "time": 72.52,
+        "risk": 0.892
+      },
+      {
+        "fuel": 495.48,
+        "time": 72.52,
+        "risk": 0.774
+      },
+      {
+        "fuel": 560.09,
+        "time": 72.52,
+        "risk": 0.713
+      }
+    ],
     "pareto_indices": [
       1,
       2,
@@ -2577,6 +2968,23 @@
     "fuel_t": 501.04,
     "time_h": 72.78,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 435.69,
+        "time": 72.78,
+        "risk": 0.92
+      },
+      {
+        "fuel": 501.04,
+        "time": 72.78,
+        "risk": 0.75
+      },
+      {
+        "fuel": 566.38,
+        "time": 72.77,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2,
@@ -2688,6 +3096,23 @@
     "fuel_t": 506.6,
     "time_h": 73.06,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 440.53,
+        "time": 73.06,
+        "risk": 0.949
+      },
+      {
+        "fuel": 506.6,
+        "time": 73.06,
+        "risk": 0.75
+      },
+      {
+        "fuel": 572.66,
+        "time": 73.05,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2,
@@ -2799,6 +3224,23 @@
     "fuel_t": 512.17,
     "time_h": 73.34,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 445.38,
+        "time": 73.34,
+        "risk": 0.977
+      },
+      {
+        "fuel": 512.17,
+        "time": 73.34,
+        "risk": 0.75
+      },
+      {
+        "fuel": 578.94,
+        "time": 73.34,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -2909,6 +3351,23 @@
     "fuel_t": 517.74,
     "time_h": 73.7,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 450.22,
+        "time": 73.7,
+        "risk": 1.0
+      },
+      {
+        "fuel": 517.74,
+        "time": 73.7,
+        "risk": 0.75
+      },
+      {
+        "fuel": 585.22,
+        "time": 73.69,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2,
@@ -3020,6 +3479,23 @@
     "fuel_t": 523.3,
     "time_h": 74.13,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 455.06,
+        "time": 74.13,
+        "risk": 1.0
+      },
+      {
+        "fuel": 523.3,
+        "time": 74.13,
+        "risk": 0.75
+      },
+      {
+        "fuel": 598.73,
+        "time": 75.03,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3130,6 +3606,23 @@
     "fuel_t": 528.87,
     "time_h": 74.53,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 459.9,
+        "time": 74.54,
+        "risk": 1.0
+      },
+      {
+        "fuel": 528.87,
+        "time": 74.53,
+        "risk": 0.75
+      },
+      {
+        "fuel": 653.64,
+        "time": 81.49,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3240,6 +3733,23 @@
     "fuel_t": 534.43,
     "time_h": 74.97,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 74.97,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 74.97,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 88.05,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3350,6 +3860,23 @@
     "fuel_t": 534.43,
     "time_h": 75.38,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 75.38,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 75.38,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 88.53,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3460,6 +3987,23 @@
     "fuel_t": 534.43,
     "time_h": 75.8,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 75.81,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 75.8,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 89.03,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3570,6 +4114,23 @@
     "fuel_t": 534.43,
     "time_h": 76.36,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 76.36,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 76.36,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 89.69,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3680,6 +4241,23 @@
     "fuel_t": 534.43,
     "time_h": 76.87,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 76.87,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 76.87,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 90.28,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3790,6 +4368,23 @@
     "fuel_t": 534.43,
     "time_h": 77.57,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 77.57,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 77.57,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 91.1,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -3900,6 +4495,23 @@
     "fuel_t": 534.43,
     "time_h": 78.18,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 78.18,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 78.18,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 91.82,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4010,6 +4622,23 @@
     "fuel_t": 534.43,
     "time_h": 78.8,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 78.8,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 78.8,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 92.55,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4120,6 +4749,23 @@
     "fuel_t": 534.43,
     "time_h": 79.46,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 79.46,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 79.46,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 93.33,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4230,6 +4876,23 @@
     "fuel_t": 534.43,
     "time_h": 80.11,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 80.11,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 80.11,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 94.08,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4340,6 +5003,23 @@
     "fuel_t": 534.43,
     "time_h": 80.88,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 80.88,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 80.88,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 94.99,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4450,6 +5130,23 @@
     "fuel_t": 534.43,
     "time_h": 81.53,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 81.53,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 81.53,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 95.76,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4560,6 +5257,23 @@
     "fuel_t": 534.43,
     "time_h": 82.26,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 82.26,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 82.26,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 96.62,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4670,6 +5384,23 @@
     "fuel_t": 534.43,
     "time_h": 82.98,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 82.98,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 82.98,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 97.46,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4780,6 +5511,23 @@
     "fuel_t": 534.43,
     "time_h": 83.63,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 83.63,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 83.63,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 98.22,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -4890,6 +5638,23 @@
     "fuel_t": 534.43,
     "time_h": 84.41,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 84.41,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 84.41,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 99.13,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5000,6 +5765,23 @@
     "fuel_t": 534.43,
     "time_h": 85.27,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 85.28,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 85.27,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 100.15,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5110,6 +5892,23 @@
     "fuel_t": 534.43,
     "time_h": 85.97,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 85.97,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 85.97,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 100.97,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5220,6 +6019,23 @@
     "fuel_t": 534.43,
     "time_h": 86.76,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 86.76,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 86.76,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 101.9,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5330,6 +6146,23 @@
     "fuel_t": 534.43,
     "time_h": 87.55,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 87.55,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 87.55,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 102.83,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5440,6 +6273,23 @@
     "fuel_t": 534.43,
     "time_h": 88.38,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 88.38,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 88.38,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 103.8,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5550,6 +6400,23 @@
     "fuel_t": 534.43,
     "time_h": 89.22,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 89.22,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 89.22,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 104.79,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5660,6 +6527,23 @@
     "fuel_t": 534.43,
     "time_h": 89.93,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 89.93,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 89.93,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 105.62,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5770,6 +6654,23 @@
     "fuel_t": 534.43,
     "time_h": 90.85,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 90.86,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 90.85,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 106.71,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5880,6 +6781,23 @@
     "fuel_t": 534.43,
     "time_h": 91.54,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 91.55,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 91.54,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 107.52,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -5990,6 +6908,23 @@
     "fuel_t": 534.43,
     "time_h": 92.14,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 92.15,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 92.14,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 108.22,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -6100,6 +7035,23 @@
     "fuel_t": 534.43,
     "time_h": 92.81,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 92.82,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 92.81,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 109.01,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -6210,6 +7162,23 @@
     "fuel_t": 534.43,
     "time_h": 93.48,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 93.48,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 93.48,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 109.79,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -6320,6 +7289,23 @@
     "fuel_t": 534.43,
     "time_h": 94.2,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 94.2,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 94.2,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 110.64,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -6430,6 +7416,23 @@
     "fuel_t": 534.43,
     "time_h": 94.83,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 94.84,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 94.83,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 111.38,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
@@ -6540,6 +7543,23 @@
     "fuel_t": 534.43,
     "time_h": 95.49,
     "risk": 0.75,
+    "routes_performance": [
+      {
+        "fuel": 464.74,
+        "time": 95.5,
+        "risk": 1.0
+      },
+      {
+        "fuel": 534.43,
+        "time": 95.49,
+        "risk": 0.75
+      },
+      {
+        "fuel": 709.56,
+        "time": 112.15,
+        "risk": 0.75
+      }
+    ],
     "pareto_indices": [
       1,
       2
