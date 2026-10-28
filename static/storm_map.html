@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TwinRoute-M · TADIF</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root { --bg:#0f1720; --panel:#16212d; --line:#26364a; --text:#e6edf5; --muted:#8fa3b8;
+          --ok:#2fbf71; --dev:#f59e0b; --rej:#3b82f6; --halt:#ef4444; --force:#a855f7; --arr:#10b981; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; margin:0; font:14px/1.4 system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
+  #app { display:flex; height:100%; }
+  #map { flex:1; min-width:0; }
+  #side { width:400px; max-width:48vw; background:var(--panel); border-left:1px solid var(--line); overflow-y:auto; padding:12px; }
+  h1 { font-size:16px; margin:0 0 2px; } h2 { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin:16px 0 6px; }
+  .sub { color:var(--muted); font-size:12px; margin-bottom:8px; }
+  button, select, input[type=number], input[type=text] { background:#0f1a26; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 8px; font:inherit; }
+  button { cursor:pointer; } button:hover { border-color:#4b6a8a; } button.on { background:#1d4ed8; border-color:#1d4ed8; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:4px 0; }
+  .grow { flex:1; }
+  .storm-item { padding:6px 8px; border:1px solid var(--line); border-radius:6px; margin:4px 0; cursor:pointer; display:flex; justify-content:space-between; }
+  .storm-item.sel { border-color:#ef4444; background:#2a1a1f; }
+  .field { display:grid; grid-template-columns:110px 1fr 52px; gap:6px; align-items:center; margin:3px 0; font-size:12px; }
+  .field input[type=range] { width:100%; } .field output { text-align:right; color:var(--muted); }
+  .field select { padding:3px 6px; font-size:12px; grid-column:2 / 4; }
+  #status { padding:10px; border-radius:8px; border:1px solid var(--line); background:#0f1a26; }
+  #badge { display:inline-block; padding:2px 8px; border-radius:99px; font-weight:600; font-size:12px; color:#fff; background:var(--ok); }
+  #reason { margin-top:6px; color:var(--muted); font-size:12px; min-height:34px; }
+  #scrub { width:100%; }
+  .kv { display:grid; grid-template-columns:1fr auto; gap:2px 8px; font-size:12px; }
+  .kv span:nth-child(odd){ color:var(--muted); }
+  #events { max-height:190px; overflow-y:auto; border:1px solid var(--line); border-radius:6px; }
+  .ev { padding:5px 8px; border-bottom:1px solid var(--line); cursor:pointer; font-size:12px; }
+  .ev:hover { background:#1b2a3b; } .ev b { margin-right:6px; }
+  .hint { position:absolute; z-index:500; left:50px; top:10px; background:#111c; color:#fff; padding:5px 10px; border-radius:6px; font-size:12px; display:none; }
+  .ship { font-size:22px; filter:drop-shadow(0 0 3px #000); }
+  .smark { width:22px; height:22px; border-radius:50%; background:#ef4444; border:2px solid #fff; display:flex; align-items:center; justify-content:center; font-size:12px; cursor:grab; }
+  .smark.sel { box-shadow:0 0 0 4px #ef444488; }
+  #err { color:#fca5a5; font-size:12px; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:99px; font-weight:600; font-size:11px; color:#fff; background:#555; margin-left:8px; }
+  table.cand { width:100%; border-collapse:collapse; font-size:11.5px; }
+  table.cand th { color:var(--muted); font-weight:500; text-align:right; padding:3px 4px; border-bottom:1px solid var(--line); }
+  table.cand td { text-align:right; padding:4px; border-bottom:1px solid var(--line); }
+  table.cand th:first-child, table.cand td:first-child { text-align:left; }
+  .pill { font-size:9.5px; padding:1px 5px; border-radius:99px; margin-left:3px; color:#fff; }
+  .chips { display:flex; gap:4px; flex-wrap:wrap; margin-top:6px; min-height:18px; }
+  .chip { font-size:10.5px; padding:1px 6px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+  .chip.high, .chip.critical { border-color:#ef4444; color:#fca5a5; } .chip.medium { border-color:#f59e0b; color:#fcd34d; }
+  .wbar { display:grid; grid-template-columns:96px 1fr 40px; gap:6px; align-items:center; font-size:11.5px; margin:2px 0; }
+  .wbar .b { height:6px; background:#0f1a26; border-radius:3px; overflow:hidden; } .wbar .b i { display:block; height:100%; background:#38bdf8; }
+  .wbar span:first-child { color:var(--muted); } .wbar span:last-child { text-align:right; }
+  .note { font-size:12px; color:var(--muted); margin-top:6px; }
+  .box { border:1px solid var(--line); border-radius:8px; padding:8px; background:#0f1a26; }
+  .tadif-only, .graph-only { }
+  @media (max-width:800px){ #app{flex-direction:column;} #side{width:100%;max-width:none;height:50%;} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <div class="hint" id="hint">Click the map to place a storm</div>
+  <div id="side">
+    <h1>TwinRoute-M · TADIF</h1>
+    <div class="sub">Mumbai → Dubai. Place, drag and tune storms. The Digital Twin decides when to re-plan, searches routes, speeds and waiting times against a storm-scenario ensemble, filters them by CVaR and steers the ship.</div>
+
+    <h2>Storms</h2>
+    <div class="row">
+      <button id="btnAdd">＋ Add storm (click map)</button>
+      <button id="btnDel">Delete</button>
+      <button id="btnClear">Clear all</button>
+      <button id="btnReset">Reset demo</button>
+    </div>
+    <div id="stormList"></div>
+    <div id="editor"></div>
+
+    <h2>Ship &amp; mission</h2>
+    <div class="field"><label>Engine</label><select id="engine"><option value="tadif">TADIF (twin steers the ship)</option><option value="graph">Legacy A* + twin scoring</option></select></div>
+    <div class="field tadif-only"><label>Mission profile</label><select id="profile"></select></div>
+    <div class="field"><label>Service speed (kn)</label><input type="range" id="shipSpeed" min="6" max="30" step="1" value="16"><output id="shipSpeedO">16</output></div>
+    <div class="field"><label id="haltLabel">Risk limit (CVaR)</label><input type="range" id="haltRisk" min="0.2" max="1" step="0.05" value="0.55"><output id="haltRiskO">0.55</output></div>
+    <div class="field tadif-only"><label>Deadline slack</label><input type="range" id="slack" min="0" max="0.6" step="0.05" value="0.15"><output id="slackO">0.15</output></div>
+    <div class="field tadif-only"><label>GPS fault at (h, 0=off)</label><input type="range" id="gpsFault" min="0" max="80" step="1" value="0"><output id="gpsFaultO">0</output></div>
+
+    <h2>Playback</h2>
+    <div class="row">
+      <button id="btnPlay">▶ Play</button>
+      <button id="btnRestart">⟲</button>
+      <select id="playSpeed"><option value="400">0.5×</option><option value="200" selected>1×</option><option value="100">2×</option><option value="40">5×</option></select>
+      <span id="tlabel" class="grow" style="text-align:right;color:var(--muted)"></span>
+    </div>
+    <input type="range" id="scrub" min="0" max="0" value="0">
+    <div id="status"><span id="badge">—</span> <span id="stat2" style="color:var(--muted);font-size:12px"></span><div id="reason"></div><div class="chips" id="trigChips"></div></div>
+
+    <h2>Digital Twin health</h2>
+    <div class="row"><span id="confNum" style="font-size:26px;font-weight:700">—</span><span id="bandTag" class="tag">—</span><span class="sub" style="margin:0 0 0 6px">twin confidence</span></div>
+    <div class="kv" id="subs"></div>
+    <div class="kv" id="env" style="margin-top:8px"></div>
+
+    <div class="tadif-only">
+      <h2>Latest decision</h2>
+      <div class="box">
+        <div id="decHead" style="font-size:12px"></div>
+        <div id="decText" class="note"></div>
+        <div class="kv" id="decObj" style="margin-top:6px"></div>
+        <h2 style="margin-top:10px">Objective weights (Φ_weight)</h2>
+        <div id="weights"></div>
+        <h2 style="margin-top:10px">Weight sensitivity</h2>
+        <div id="sens" class="note"></div>
+      </div>
+    </div>
+
+    <h2>Candidate routes <label style="float:right;text-transform:none;letter-spacing:0;font-weight:400"><input type="checkbox" id="showCand" checked> draw on map</label></h2>
+    <table class="cand"><thead id="candHead"></thead><tbody id="candBody"></tbody></table>
+
+    <h2>Voyage summary</h2>
+    <div class="kv" id="summary"></div>
+
+    <div class="tadif-only">
+      <h2>Knowledge base (Φ_learn)</h2>
+      <div class="kv" id="kb"></div>
+      <div class="row" style="margin-top:6px">
+        <button id="btnLearn">Complete voyage → update twin</button>
+        <button id="btnForget">Reset memory</button>
+      </div>
+      <div class="note">The ship's hull is fouled (true fuel factor 1.12). Each voyage the twin learns it in flight; saving a voyage makes the next one start from what was learned.</div>
+    </div>
+
+    <h2>Decision log (click to jump)</h2>
+    <div id="events"></div>
+    <div id="err"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const COLORS = {CRUISING:'#2fbf71', DEVIATING:'#f59e0b', REJOINING:'#3b82f6',
+                HALTED:'#ef4444', FORCED:'#a855f7', ARRIVED:'#10b981'};
+const FIELDS = [
+  ['radius_km','Radius (km)',20,1000,10], ['severity','Severity',0.05,1,0.05],
+  ['heading_deg','Heading (°)',0,360,5], ['speed_kmh','Storm speed (km/h)',0,80,1],
+  ['detect_h','Detected at (h)',0,80,1], ['lifetime_h','Lifetime (h, 0=∞)',0,200,2],
+];
+const KIND = {selected:['Selected','#2fbf71'], runner_up:['Runner-up','#38bdf8'], min_fuel:['Min fuel','#eab308'],
+              fastest:['Fastest','#f97316'], min_risk:['Min risk','#a855f7'], direct:['Direct','#94a3b8'],
+              rejected:['Rejected','#ef4444'], plan:['Ship plan','#38bdf8'], safest:['Safest','#a855f7']};
+const CRIT = {fuel:'Fuel', eta_var:'ETA deviation', emissions:'CO₂', safety:'Storm exposure', reliability:'Hours late', robustness:'CVaR risk'};
+
+const S = { storms:[], sel:-1, data:null, frame:0, playing:false, addMode:false,
+            timer:null, cfg:null, trailUpTo:-1 };
+const $ = id => document.getElementById(id);
+
+// ---------- map ----------
+const map = L.map('map', {zoomControl:true}).setView([22.3, 64.3], 5);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {maxZoom:10, attribution:'© OpenStreetMap contributors'}).addTo(map);
+const L_base = L.layerGroup().addTo(map), L_tracks = L.layerGroup().addTo(map),
+      L_trail = L.layerGroup().addTo(map), L_cand = L.layerGroup().addTo(map),
+      L_plan = L.layerGroup().addTo(map),
+      L_storms = L.layerGroup().addTo(map), L_halts = L.layerGroup().addTo(map),
+      L_marks = L.layerGroup().addTo(map);
+let shipMarker = null, estMarker = null;
+
+map.on('click', e => {
+  if (!S.addMode) return;
+  S.storms.push({name:`Storm ${S.storms.length+1}`, lat:e.latlng.lat, lon:e.latlng.lng,
+                 radius_km:150, severity:0.9, heading_deg:0, speed_kmh:0, lifetime_h:0, detect_h:0});
+  S.sel = S.storms.length-1; setAdd(false); refreshUI(); simulate();
+});
+
+function setAdd(on){ S.addMode=on; $('btnAdd').classList.toggle('on',on);
+  $('hint').style.display = on?'block':'none';
+  map.getContainer().style.cursor = on?'crosshair':''; }
+
+// ---------- storm UI ----------
+function refreshUI(){
+  const list = $('stormList'); list.innerHTML='';
+  S.storms.forEach((s,i)=>{
+    const d=document.createElement('div'); d.className='storm-item'+(i===S.sel?' sel':'');
+    const a=document.createElement('span'); a.textContent=s.name;
+    const b=document.createElement('span'); b.style.color='var(--muted)';
+    b.textContent=`${Math.round(s.radius_km)} km · sev ${(+s.severity).toFixed(2)}`;
+    d.append(a,b); d.onclick=()=>{S.sel=i; refreshUI(); drawStormMarkers();}; list.append(d);
+  });
+  const ed=$('editor'); ed.innerHTML='';
+  const s=S.storms[S.sel]; if(!s) return;
+  FIELDS.forEach(([k,label,lo,hi,step])=>{
+    const row=document.createElement('div'); row.className='field';
+    const l=document.createElement('label'); l.textContent=label;
+    const r=document.createElement('input'); r.type='range'; r.min=lo; r.max=hi; r.step=step; r.value=s[k]??0;
+    const o=document.createElement('output'); o.textContent=r.value;
+    r.oninput=()=>{ s[k]=+r.value; o.textContent=r.value; liveUpdate(); };
+    row.append(l,r,o); ed.append(row);
+  });
+}
+let liveT=null;
+function liveUpdate(){ drawStormMarkers(); clearTimeout(liveT); liveT=setTimeout(()=>{refreshListOnly(); simulate();},250); }
+function refreshListOnly(){ document.querySelectorAll('.storm-item').forEach((el,i)=>{ const s=S.storms[i];
+  if(s) el.lastChild.textContent=`${Math.round(s.radius_km)} km · sev ${(+s.severity).toFixed(2)}`; }); }
+
+function drawStormMarkers(){
+  L_marks.clearLayers();
+  S.storms.forEach((s,i)=>{
+    const icon=L.divIcon({className:'', iconSize:[22,22], iconAnchor:[11,11],
+      html:`<div class="smark ${i===S.sel?'sel':''}">${i+1}</div>`});
+    const m=L.marker([s.lat,s.lon],{icon, draggable:true, zIndexOffset:1000}).addTo(L_marks);
+    m.on('click',()=>{S.sel=i; refreshUI(); drawStormMarkers();});
+    m.on('dragend',ev=>{ const p=ev.target.getLatLng(); s.lat=p.lat; s.lon=p.lng; simulate(); });
+  });
+}
+
+$('btnAdd').onclick=()=>setAdd(!S.addMode);
+$('btnDel').onclick=()=>{ if(S.sel<0) return; S.storms.splice(S.sel,1);
+  S.sel=Math.min(S.sel,S.storms.length-1); refreshUI(); drawStormMarkers(); simulate(); };
+$('btnClear').onclick=()=>{ S.storms=[]; S.sel=-1; refreshUI(); drawStormMarkers(); simulate(); };
+$('btnReset').onclick=()=>{ S.storms=JSON.parse(JSON.stringify(S.cfg.default_storms)).map(norm);
+  S.sel=0; refreshUI(); drawStormMarkers(); simulate(); };
+for (const id of ['shipSpeed','haltRisk','slack','gpsFault']) {
+  const el=$(id), o=$(id+'O');
+  el.oninput=()=>{ o.textContent=el.value; clearTimeout(liveT); liveT=setTimeout(simulate,250); };
+}
+$('engine').onchange=()=>{ applyEngineUI(); simulate(); };
+$('profile').onchange=()=>simulate();
+$('btnLearn').onclick=()=>simulate(true);
+$('btnForget').onclick=async()=>{ await fetch('/api/knowledge/reset',{method:'POST'}); simulate(); };
+const norm = s => ({...s, lifetime_h:s.lifetime_h||0});
+const isTadif = () => $('engine').value==='tadif';
+function applyEngineUI(){
+  document.querySelectorAll('.tadif-only').forEach(el=>el.style.display=isTadif()?'':'none');
+  $('haltLabel').textContent = isTadif() ? 'Risk limit (CVaR)' : 'Halt if risk ≥';
+}
+
+// ---------- simulate ----------
+let reqId=0;
+async function simulate(learn=false){
+  const my=++reqId; $('err').textContent=learn?'Saving voyage to the knowledge base…':'Simulating…';
+  try{
+    const res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({storms:S.storms, engine:$('engine').value, profile:$('profile').value,
+                           speed_kts:+$('shipSpeed').value, halt_risk:+$('haltRisk').value,
+                           deadline_slack:+$('slack').value, gps_fault_h:+$('gpsFault').value, learn})});
+    const data=await res.json(); if(my!==reqId) return;
+    if(!res.ok) throw new Error(data.error||res.statusText);
+    $('err').textContent='';
+    S.data=data; const sc=$('scrub'); sc.max=data.frames.length-1;
+    S.frame=Math.min(S.frame,data.frames.length-1); sc.value=S.frame;
+    drawStatic(); buildSummary(); buildEvents(); buildKB(); S.trailUpTo=-1; drawFrame(S.frame,true);
+  }catch(e){ if(my===reqId) $('err').textContent='Error: '+e.message; }
+}
+
+function drawStatic(){
+  const d=S.data; L_base.clearLayers(); L_tracks.clearLayers();
+  L.polyline(d.baseline,{color:'#94a3b8',weight:3,dashArray:'6 8',opacity:.9}).bindTooltip('Storm-free route').addTo(L_base);
+  L.circleMarker(d.origin,{radius:6,color:'#fff',fillColor:'#2fbf71',fillOpacity:1}).bindTooltip('Mumbai').addTo(L_base);
+  L.circleMarker(d.destination,{radius:6,color:'#fff',fillColor:'#3b82f6',fillOpacity:1}).bindTooltip('Dubai').addTo(L_base);
+  d.storm_tracks.forEach(tr=>{ if(tr.length>1){
+    L.polyline(tr,{color:'#ef4444',weight:2,dashArray:'2 6',opacity:.8}).addTo(L_tracks);
+    tr.forEach((p,i)=>{ if(i%6===0) L.circleMarker(p,{radius:2,color:'#ef4444',fillOpacity:1}).addTo(L_tracks); }); }});
+}
+
+function kv(el, rows){ el.innerHTML=''; rows.forEach(([k,v])=>{ const a=document.createElement('span'); a.textContent=k;
+  const b=document.createElement('span'); b.textContent=v; el.append(a,b); }); }
+
+function buildSummary(){
+  const s=S.data.summary;
+  const rows=[['Arrived',s.arrived?'yes':'NO'],['Voyage time',s.total_hours+' h'],
+    ['Distance sailed',s.sailed_km+' km'],['Storm-free distance',s.baseline_km+' km'],
+    ['Detour',(s.extra_km>=0?'+':'')+s.extra_km+' km'],['Halted',s.halted_hours+' h']];
+  if(S.data.engine==='tadif') rows.push(
+    ['Deadline',`${s.deadline_h} h (${s.on_time?'on time':'late'})`],
+    ['Fuel burned',`${s.fuel_used_t} t (twin predicted ${s.fuel_predicted_t} t)`],
+    ['Fuel factor θ',`${s.theta_prior} → ${s.theta_fuel} (true ${s.theta_true})`],
+    ['Decision cycles',`${s.decision_cycles} (${s.evaluations.toLocaleString()} route evaluations)`]);
+  rows.push(['Corridor width',s.corridor_km+' km'],['Graph',`${s.graph.nodes} nodes / ${s.graph.edges} edges`]);
+  kv($('summary'), rows);
+}
+function buildKB(){
+  const k=S.data.knowledge; if(!k) return;
+  const rows=[['Stored fuel factor θ',`${k.theta_fuel.mu} ± ${k.theta_fuel.sd}`],['Voyages learned',k.n_voyages]];
+  const last=k.voyages[k.voyages.length-1];
+  if(last) rows.push(['Last saved',`${last.when} · ${last.hours} h · ${last.fuel_realized_t} t`]);
+  kv($('kb'), rows);
+}
+function buildEvents(){
+  const el=$('events'); el.innerHTML='';
+  S.data.events.forEach(ev=>{ const d=document.createElement('div'); d.className='ev';
+    const b=document.createElement('b'); b.textContent=ev.status; b.style.color=COLORS[ev.status];
+    const t=document.createElement('span'); t.textContent=`t=${ev.t} h  ${ev.reason}`;
+    d.append(b,t); d.onclick=()=>{ pause(); S.frame=ev.frame; $('scrub').value=S.frame; drawFrame(S.frame,true); };
+    el.append(d); });
+}
+
+// ---------- twin + decision panels ----------
+const BAND_COLORS={NOMINAL:'#2fbf71', ADVISORY:'#f59e0b', CRITICAL:'#ef4444'};
+function renderTwin(f){
+  const tw=f.twin; if(!tw) return;
+  $('confNum').textContent=(tw.confidence*100).toFixed(0)+'%';
+  const bt=$('bandTag'); bt.textContent=tw.band; bt.style.background=BAND_COLORS[tw.band]||'#555';
+  kv($('subs'), Object.entries(tw.subscores).map(([k,v])=>[k, (v*100).toFixed(0)+'%']));
+  const env=[['Wind',tw.wind_kt+' kt'],['Wave height',tw.wave_m+' m'],['Visibility',tw.visibility_km+' km'],
+             ['Storm felt by ship',(tw.storm_feel*100).toFixed(0)+'%']];
+  if(tw.estimation) env.push(['GPS / UKF error',`${tw.estimation.error_km} km (NIS ${tw.estimation.nis})`],
+    ['Learned fuel factor θ',`${tw.theta_fuel} ± ${tw.theta_sd}`],
+    ['Scenario ensemble',`${tw.scenarios} · spread ${tw.forecast_spread_km} km`]);
+  kv($('env'), env);
+}
+
+function chips(el, items){ el.innerHTML=''; (items||[]).forEach(([txt,cls])=>{ const c=document.createElement('span');
+  c.className='chip '+(cls||''); c.textContent=txt; el.append(c); }); }
+
+function renderDecision(f){
+  const d = f.decision_id==null ? null : S.data.decisions[f.decision_id];
+  if(!d){ $('decHead').textContent='—'; $('decText').textContent=''; kv($('decObj'),[]); $('weights').innerHTML=''; $('sens').textContent=''; return null; }
+  $('decHead').textContent=`Cycle ${d.cycle_index} at t=${d.t} h · trigger: ${d.trigger.names.join(', ')} (${d.trigger.severity}, re-enter at ${d.trigger.reentry}) · action: ${d.action.replace('_',' ')}`;
+  $('decText').textContent=d.explanation.text;
+  const o=d.selected_route?d.selected_route.objective_vector:null, sr=d.selected_route;
+  const rows=[['Search',`${d.n_evaluations.toLocaleString()} evaluations · ${d.n_candidates} candidates · ${d.n_accepted} pass risk · ${d.n_rejected} rejected`],
+              ['Scenarios',`${d.n_scenarios} (NSGA-III on ${d.n_opt_scenarios} clustered)`],
+              ['Risk limits',`CVaR${Math.round(d.risk_thresholds.alpha*100)} ≤ ${d.risk_thresholds.cvar_max}, P(core) ≤ ${d.risk_thresholds.p_fail_max}`]];
+  if(o) rows.push(['Selected',`${o.distance_km} km at ${sr.speed_profile_knots[0]} kn${sr.hold_h?` after ${sr.hold_h} h wait`:''}`],
+                  ['Fuel / CO₂',`${o.fuel_t} t / ${o.co2_t} t`],['Time / ETA σ',`${o.time_h} h / ±${o.eta_std_h} h`],
+                  ['CVaR (95% CI)',`${o.robustness_cvar} [${sr.cvar_ci95.join(', ')}]`],['P(core) / on-time',`${sr.p_fail} / ${(o.reliability*100).toFixed(0)}%`]);
+  if(d.explanation.runner_up_gap!=null) rows.push(['Score / runner-up gap',`${d.explanation.score} / ${d.explanation.runner_up_gap}`],
+    ['TOPSIS vs PROMETHEE II', d.explanation.methods_agree?'agree':'disagree']);
+  kv($('decObj'), rows);
+  const w=$('weights'); w.innerHTML='';
+  Object.keys(CRIT).map(k=>[k, d.weights.weights[k]]).forEach(([k,v])=>{ const r=document.createElement('div'); r.className='wbar';
+    const a=document.createElement('span'); a.textContent=CRIT[k]||k;
+    const b=document.createElement('span'); b.className='b'; const i=document.createElement('i'); i.style.width=(v*100)+'%'; b.append(i);
+    const c=document.createElement('span'); c.textContent=v.toFixed(2); r.append(a,b,c); w.append(r); });
+  const p=d.weights.pressures, ws=d.explanation.weight_sensitivity;
+  $('sens').textContent = `Profile ${d.weights.profile} · pressures: deadline ${p.deadline}, weather ${p.weather}, low confidence ${p.low_confidence}. `
+    + (ws ? 'Change needed to flip the pick: ' + Object.keys(CRIT).map(k=>[k, ws[k]]).map(([k,v])=>`${CRIT[k]} ${v>=1?'≥100':Math.round(v*100)}%`).join(', ') : '');
+  return d;
+}
+
+function renderCandidates(f, d){
+  const head=$('candHead'), body=$('candBody'); body.innerHTML='';
+  if(S.data.engine==='tadif'){
+    head.innerHTML='<tr><th>Route</th><th>km</th><th>kn</th><th>wait</th><th>fuel t</th><th>time h</th><th>CVaR</th></tr>';
+    (d?d.candidates:[]).forEach(c=>{ const tr=document.createElement('tr'); const td0=document.createElement('td');
+      const [label,col]=KIND[c.kind]||[c.kind,'#888']; const dot=document.createElement('span'); dot.textContent='● '; dot.style.color=col;
+      td0.append(dot, document.createTextNode(label));
+      if(!c.accepted){ const x=document.createElement('span'); x.className='pill'; x.style.background='#b91c1c'; x.textContent='REJECTED'; td0.append(x); }
+      tr.append(td0);
+      [c.km, c.speed_kts, c.hold_h?c.hold_h+'h':'–', c.fuel_t, c.time_h, c.cvar].forEach((v,j)=>{ const td=document.createElement('td'); td.textContent=v;
+        if(j===5 && !c.accepted) td.style.color='#f87171'; tr.append(td); });
+      body.append(tr); });
+  } else {
+    head.innerHTML='<tr><th>Route</th><th>km</th><th>fuel t</th><th>time h</th><th>risk</th></tr>';
+    (f.routes_performance||[]).forEach((p,i)=>{ const tr=document.createElement('tr'); const c=(f.candidates||[])[i]||{kind:'plan'};
+      const td0=document.createElement('td'); const dot=document.createElement('span'); dot.textContent='● '; dot.style.color=(KIND[c.kind]||['', '#888'])[1];
+      td0.append(dot, document.createTextNode(p.name.replace(/ \(.*\)/,'')));
+      if(i===f.twin_pick){ const x=document.createElement('span'); x.className='pill'; x.style.background='#2fbf71'; x.textContent='TWIN PICK'; td0.append(x); }
+      tr.append(td0);
+      [Math.round(p.distance), p.fuel.toFixed(0), p.time.toFixed(1), p.risk.toFixed(2)].forEach(v=>{ const td=document.createElement('td'); td.textContent=v; tr.append(td); });
+      body.append(tr); });
+  }
+}
+$('showCand').onchange=()=>{ if(S.data) drawFrame(S.frame,false); };
+
+// ---------- frame drawing ----------
+function drawFrame(i, rebuild){
+  const F=S.data.frames; if(!F.length) return; const f=F[i];
+  if(rebuild || i<S.trailUpTo){ L_trail.clearLayers(); L_halts.clearLayers(); S.trailUpTo=0; }
+  for(let j=Math.max(S.trailUpTo,0)+1;j<=i;j++){
+    L.polyline([F[j-1].ship,F[j].ship],{color:COLORS[F[j].status]||'#2fbf71',weight:5}).addTo(L_trail);
+    if(F[j].status==='HALTED' && F[j-1].status!=='HALTED')
+      L.circleMarker(F[j].ship,{radius:9,color:'#fff',fillColor:COLORS.HALTED,fillOpacity:1,weight:2})
+        .bindTooltip(`Halted at t=${F[j].t} h`).addTo(L_halts);
+  }
+  S.trailUpTo=i;
+  L_plan.clearLayers();
+  if(f.path && f.status!=='ARRIVED') L.polyline(f.path,{color:'#38bdf8',weight:3,opacity:.95}).bindTooltip('Current plan').addTo(L_plan);
+  L_storms.clearLayers();
+  f.storms.forEach(s=>{
+    const known=s.detected, sev=s.severity; if(sev<=0.01) return;
+    L.circle([s.lat,s.lon],{radius:s.radius_km*1000,color:known?'#ef4444':'#f59e0b',weight:2,
+      dashArray:known?null:'6 6',fillColor:'#ef4444',fillOpacity:Math.min(.55,.08+sev*.4)})
+      .bindTooltip(`${s.name} · severity ${sev.toFixed(2)}${known?'':' (not yet detected)'}`).addTo(L_storms);
+    if(sev>=0.7) L.circle([s.lat,s.lon],{radius:s.radius_km*500,color:'#7f1d1d',weight:1,
+      fillColor:'#7f1d1d',fillOpacity:.45,interactive:false}).addTo(L_storms);
+  });
+  renderTwin(f);
+  const d = S.data.engine==='tadif' ? renderDecision(f) : null;
+  renderCandidates(f, d);
+  L_cand.clearLayers();
+  if($('showCand').checked){
+    if(d) d.candidates.forEach(c=>{ if(c.kind==='selected') return; const [label,col]=KIND[c.kind]||[c.kind,'#888'];
+      L.polyline(c.path,{color:col,weight:2,dashArray:'4 6',opacity:.85}).bindTooltip(`${label}: ${c.km} km, ${c.speed_kts} kn, CVaR ${c.cvar}`).addTo(L_cand); });
+    else (f.candidates||[]).forEach(c=>{ if(c.path) L.polyline(c.path,{color:(KIND[c.kind]||['', '#888'])[1],weight:2,dashArray:'4 6',opacity:.9}).bindTooltip(c.name).addTo(L_cand); });
+  }
+  if(!shipMarker){ shipMarker=L.marker(f.ship,{icon:L.divIcon({className:'',html:'<div class="ship">🚢</div>',iconSize:[24,24],iconAnchor:[12,12]}),zIndexOffset:2000}).addTo(map); }
+  shipMarker.setLatLng(f.ship);
+  if(f.ship_est){ if(!estMarker) estMarker=L.circleMarker(f.ship_est,{radius:7,color:'#facc15',weight:2,fill:false}).bindTooltip('Twin\'s estimated position (UKF)').addTo(map);
+    estMarker.setLatLng(f.ship_est); } else if(estMarker){ map.removeLayer(estMarker); estMarker=null; }
+  const b=$('badge'); b.textContent=f.status; b.style.background=COLORS[f.status]||'#555';
+  $('stat2').textContent=`t = ${f.t} h · sailed ${f.sailed_km} km · ${f.speed_kts!=null?f.speed_kts+' kn · ':''}hazard at ship ${f.ship_risk} · plan ${S.data.engine==='tadif'?'CVaR':'risk'} ${f.plan_risk}`;
+  $('reason').textContent=f.reason;
+  const sev=Object.fromEntries((S.data.trigger_log||[]).filter(x=>x.t===f.t).map(x=>[x.name,x.severity]));
+  chips($('trigChips'), (f.triggers||[]).map(n=>['⚡ '+n.replace(/_/g,' '), sev[n]]).concat(f.cycle?[['decision cycle','']]:[]));
+  $('tlabel').textContent=`frame ${i+1}/${F.length}`;
+  $('scrub').value=i;
+}
+
+// ---------- playback ----------
+function pause(){ S.playing=false; clearInterval(S.timer); $('btnPlay').textContent='▶ Play'; }
+function play(){ if(!S.data) return; if(S.frame>=S.data.frames.length-1) S.frame=0, drawFrame(0,true);
+  S.playing=true; $('btnPlay').textContent='⏸ Pause';
+  S.timer=setInterval(()=>{ if(S.frame>=S.data.frames.length-1){pause();return;}
+    S.frame++; drawFrame(S.frame,false); }, +$('playSpeed').value); }
+$('btnPlay').onclick=()=>S.playing?pause():play();
+$('btnRestart').onclick=()=>{ pause(); S.frame=0; drawFrame(0,true); };
+$('playSpeed').onchange=()=>{ if(S.playing){pause();play();} };
+$('scrub').oninput=e=>{ pause(); S.frame=+e.target.value; drawFrame(S.frame,true); };
+
+// ---------- boot ----------
+(async()=>{
+  S.cfg=await (await fetch('/api/config')).json();
+  S.cfg.profiles.forEach(p=>{ const o=document.createElement('option'); o.value=p; o.textContent=p.replace(/_/g,' '); $('profile').append(o); });
+  applyEngineUI();
+  S.storms=S.cfg.default_storms.map(norm); S.sel=0;
+  refreshUI(); drawStormMarkers(); await simulate();
+  map.fitBounds(L.latLngBounds([S.cfg.origin,S.cfg.destination]).pad(0.35));
+})();
+</script>
+</body>
+</html>

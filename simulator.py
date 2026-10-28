@@ -58,7 +58,8 @@ def route_security_exposure(route, security_risk_zone):
 
 def simulate_route(route, twin, risk_multiplier=1.0, fuel_multiplier=1.0,
                     storm_point=None, storm_severity=0.0,
-                    security_risk_zone=None, security_risk_severity=0.0):
+                    security_risk_zone=None, security_risk_severity=0.0,
+                    storm_exposure=None):
     """
     Estimate fuel, time, and risk for a given route.
     Considers wind, wave height, wave period, visibility, AND (if a storm
@@ -95,7 +96,12 @@ def simulate_route(route, twin, risk_multiplier=1.0, fuel_multiplier=1.0,
     # Route-specific storm exposure: routes that actually pass near the
     # storm center take a real risk penalty scaled by how severe it is;
     # routes that genuinely detour around it don't.
-    exposure = route_storm_exposure(route, storm_point)
+    # `storm_exposure` (0-1) lets a caller that already knows the route's
+    # exposure to ANY number of storms (the graph hazard field in
+    # routing/hazard.py) supply it directly; otherwise fall back to the
+    # single-storm-point estimate above.
+    exposure = (storm_exposure if storm_exposure is not None
+                else route_storm_exposure(route, storm_point))
     storm_exposure_risk = exposure * storm_severity * 0.9
 
     # Security-risk corridor exposure: independent of storm/weather risk,
