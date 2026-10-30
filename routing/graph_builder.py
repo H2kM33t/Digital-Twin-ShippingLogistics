@@ -10,27 +10,28 @@ paths, etc.).
 
 Responsibilities
 ----------------
-1. Generate a great-circle centerline between origin and destination.
+1. Generate the centerline: the great circle, or a sea-lane polyline
+   from routing/ocean.py resampled to the longitudinal resolution.
 2. Expand the centerline into a multi-lane navigation corridor.
-3. Convert the corridor into graph nodes.
-4. Connect neighbouring nodes with directed, forward-only edges.
+3. Convert the corridor into graph nodes (land nodes marked RESTRICTED
+   when the land mask is on).
+4. Connect neighbouring nodes with directed, forward-only edges that
+   stay in the water.
 5. Validate graph integrity and connectivity.
-
-The generated graph is intentionally synthetic so that real
-bathymetry, AIS lanes, and nautical charts can later replace it
-without changing the rest of the routing architecture.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from math import asin, atan2, cos, degrees, radians, sin, sqrt
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 
 from .corridor import NavigationCorridor
 from .edge import EdgeCost, GraphEdge
 from .graph import NavigationGraph
-from .node import GraphNode
+from .node import GraphNode, NodeType
 
 
 # ==============================================================
@@ -73,6 +74,13 @@ class GraphBuilderConfig:
     longitudinal_resolution: int = 40
     lateral_resolution: int = 7
     corridor_width_km: float = 120.0
+    # Optional sea-lane polyline (see routing/ocean.py). When given, the
+    # corridor follows it instead of the great circle.
+    centerline_path: Optional[List[Coordinate]] = None
+    # Drop nodes and edges on land (1 km global mask). The centre lane is
+    # the sea route itself and always stays navigable (canals, port
+    # approaches narrower than the mask resolution).
+    land_mask: bool = False
 
 
 # ==============================================================
@@ -133,11 +141,22 @@ class GraphBuilder:
             connected, validated navigation graph.
         """
 
-        centerline = self.generate_centerline(origin, destination)
+        if self.config.centerline_path:
+            from .ocean import resample
+            centerline = resample(self.config.centerline_path,
+                                  self.config.longitudinal_resolution)
+        else:
+            centerline = self.generate_centerline(origin, destination)
 
         corridor = self.generate_navigation_corridor(centerline)
 
         graph = self._generate_graph_nodes(corridor)
+
+        self._water = self._water_mask(corridor) if self.config.land_mask else None
+        if self._water is not None:
+            for (x, y), node_id in graph.node_lookup.items():
+                if not self._water[x, y]:
+                    graph.get_node(node_id).node_type = NodeType.RESTRICTED
 
         self._connect_graph(graph, corridor)
 
@@ -445,30 +464,64 @@ class GraphBuilder:
             Local bearing, in degrees, for every centerline point.
         """
 
+        n = len(centerline)
+        if n < 2:
+            return [0.0] * n
+
+        # bearing of every leg, as unit vectors so 350 and 10 average to 0
+        legs = [radians(self._compute_bearing(a, b))
+                for a, b in zip(centerline[:-1], centerline[1:])]
+        ux = np.array([sin(b) for b in legs])
+        uy = np.array([cos(b) for b in legs])
+
+        # each point: mean of the legs around it, widened on a sea route so
+        # lanes do not fold over each other at sharp turns
+        window = 3 if self.config.centerline_path else 1
         bearings: List[float] = []
-
-        last_index = len(centerline) - 1
-
-        for i in range(len(centerline)):
-
-            if i == 0:
-                bearing = self._compute_bearing(
-                    centerline[i], centerline[i + 1]
-                )
-
-            elif i == last_index:
-                bearing = self._compute_bearing(
-                    centerline[i - 1], centerline[i]
-                )
-
-            else:
-                b1 = self._compute_bearing(centerline[i - 1], centerline[i])
-                b2 = self._compute_bearing(centerline[i], centerline[i + 1])
-                bearing = (b1 + b2) / 2.0
-
-            bearings.append(bearing)
+        for i in range(n):
+            lo, hi = max(0, i - window), min(n - 1, i + window)
+            sx, sy = ux[lo:hi].sum(), uy[lo:hi].sum()
+            bearings.append((degrees(atan2(sx, sy)) + 360.0) % 360.0)
 
         return bearings
+
+    # ----------------------------------------------------------
+
+    def _water_mask(self, corridor: NavigationCorridor) -> np.ndarray:
+        """(columns, lanes) bool: node is at sea. Centre lane always is."""
+
+        from .ocean import is_water
+
+        lat = np.array(corridor.lanes)[:, :, 0].T       # (x, y)
+        lon = np.array(corridor.lanes)[:, :, 1].T
+        water = is_water(lat, lon)
+        water[:, corridor.lateral_resolution // 2] = True
+        return water
+
+    def _edge_in_water(self, corridor: NavigationCorridor) -> np.ndarray:
+        """(columns - 1, lanes, 3) bool for moves to lane y-1, y, y+1."""
+
+        from .ocean import is_water
+
+        P = np.array(corridor.lanes).transpose(1, 0, 2)  # (x, y, 2)
+        nx, ny = P.shape[:2]
+        centre = ny // 2
+        ok = np.zeros((nx - 1, ny, 3), bool)
+        for m, dy in enumerate((-1, 0, 1)):
+            ys = np.arange(ny)
+            yt = ys + dy
+            valid = (yt >= 0) & (yt < ny)
+            yt = np.clip(yt, 0, ny - 1)
+            a, b = P[:-1][:, ys], P[1:][:, yt]           # (nx-1, ny, 2)
+            fine = valid[None].repeat(nx - 1, 0)
+            for f in (0.25, 0.5, 0.75):
+                q = a + f * (b - a)
+                fine &= is_water(q[..., 0], q[..., 1])
+            fine &= self._water[:-1][:, ys] & self._water[1:][:, yt]
+            if dy == 0:
+                fine[:, centre] = True                  # the sea route itself
+            ok[:, :, m] = fine & valid[None]
+        return ok
 
     # ============================================================
     # Graph Construction
@@ -569,6 +622,8 @@ class GraphBuilder:
 
         longitudinal_steps = corridor.longitudinal_resolution
         lateral_steps = corridor.lateral_resolution
+        in_water = (self._edge_in_water(corridor)
+                    if getattr(self, "_water", None) is not None else None)
 
         for x in range(longitudinal_steps - 1):
 
@@ -581,6 +636,9 @@ class GraphBuilder:
                 for target_y in (y, y - 1, y + 1):
 
                     if target_y < 0 or target_y >= lateral_steps:
+                        continue
+
+                    if in_water is not None and not in_water[x, y, target_y - y + 1]:
                         continue
 
                     target_id = graph.node_lookup[(next_x, target_y)]
@@ -708,6 +766,17 @@ class GraphBuilder:
 
         for edge in graph.edges.values():
             outgoing_counts[edge.source] += 1
+
+        if self.config.land_mask:
+            # Coastal water nodes may be dead ends (land ahead); planners
+            # simply never use them. What must hold is that the centre
+            # lane - the sea route - runs unbroken to the destination.
+            centre = self.config.lateral_resolution // 2
+            for x in range(int(max_x)):
+                if not graph.has_edge(graph.node_lookup[(x, centre)],
+                                      graph.node_lookup[(x + 1, centre)]):
+                    raise ValueError(f"Sea route broken at column {x}.")
+            return
 
         for node_id, node in graph.nodes.items():
 

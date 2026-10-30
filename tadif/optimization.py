@@ -105,12 +105,14 @@ def _normalize(F: np.ndarray) -> np.ndarray:
 class NSGA3:
 
     def __init__(self, n_obj: int = 4, partitions: int = 5, n_gen: int = 25,
-                 seed: int = 0) -> None:
+                 seed: int = 0, stall: int = 0) -> None:
         self.ref = das_dennis(n_obj, partitions)
         self.pop_size = len(self.ref) + (len(self.ref) % 2)
         self.n_gen = n_gen
         self.rng = np.random.default_rng(seed)
         self.n_evals = 0
+        self.stall = stall              # 0 = always run n_gen generations
+        self.generations_run = 0
 
     # ---------------- variation ----------------
 
@@ -168,39 +170,37 @@ class NSGA3:
         if CV[last[0]] > 0:                       # infeasible front: by violation
             return np.array(chosen + last[: n - len(chosen)].tolist())
 
+        # chosen fronts are feasible here (feasible fronts come first)
         pool = np.array(chosen + last.tolist())
-        feas_pool = pool[CV[pool] <= 0]
-        Nf = _normalize(F[feas_pool])
+        Nf = _normalize(F[pool])
         W = self.ref / np.linalg.norm(self.ref, axis=1, keepdims=True)
         proj = Nf @ W.T
         dist = np.sqrt(np.maximum((Nf ** 2).sum(1)[:, None] - proj ** 2, 0.0))
         assoc = dist.argmin(1)
         dmin = dist.min(1)
-        pos = {int(p): k for k, p in enumerate(feas_pool)}
 
-        niche = np.zeros(len(self.ref), int)
-        for p in chosen:
-            if p in pos:
-                niche[assoc[pos[p]]] += 1
-
-        remaining = list(last)
+        k0 = len(chosen)
+        niche = np.bincount(assoc[:k0], minlength=len(self.ref))
+        la, ld = assoc[k0:], dmin[k0:]                 # the last front's members
+        avail = np.ones(len(last), bool)
         active = np.ones(len(self.ref), bool)
-        while len(chosen) < n and remaining:
-            cand_niche = np.where(active, niche, np.iinfo(int).max)
-            j_min = cand_niche.min()
-            js = np.nonzero(cand_niche == j_min)[0]
+        big = np.iinfo(niche.dtype).max
+        while len(chosen) < n and avail.any():
+            cand_niche = np.where(active, niche, big)
+            if not active.any():
+                rest = last[avail][: n - len(chosen)]
+                chosen.extend(rest.tolist())
+                break
+            js = np.nonzero(cand_niche == cand_niche.min())[0]
             j = int(self.rng.choice(js))
-            members = [p for p in remaining if assoc[pos[p]] == j]
-            if not members:
+            members = np.nonzero(avail & (la == j))[0]
+            if not len(members):
                 active[j] = False
-                if not active.any():
-                    chosen.extend(remaining[: n - len(chosen)])
-                    break
                 continue
-            pick = (min(members, key=lambda p: dmin[pos[p]]) if niche[j] == 0
+            pick = (members[np.argmin(ld[members])] if niche[j] == 0
                     else members[int(self.rng.integers(len(members)))])
-            chosen.append(pick)
-            remaining.remove(pick)
+            chosen.append(int(last[pick]))
+            avail[pick] = False
             niche[j] += 1
         return np.array(chosen)
 
@@ -224,7 +224,9 @@ class NSGA3:
         F, CV, K = evaluate(G)
         self.n_evals += len(G)
 
+        last_front, unchanged = None, 0
         for _ in range(self.n_gen):
+            self.generations_run += 1
             Q = self._offspring(G, CV, n_lanes, levels)
             FQ, CVQ, KQ = evaluate(Q)
             self.n_evals += len(Q)
@@ -235,5 +237,15 @@ class NSGA3:
             G2, F2, CV2, K2 = G2[uniq], F2[uniq], CV2[uniq], K2[uniq]
             keep = self._survive(F2, CV2, min(n, len(G2)))
             G, F, CV, K = G2[keep], F2[keep], CV2[keep], K2[keep]
+
+            # stall criterion (spec 14.8 uses hypervolume; an unchanged
+            # first front is the same signal, cheaper)
+            if self.stall:
+                front = constrained_fronts(F, CV)[0]
+                key = K[front][np.lexsort(K[front].T[::-1])].tobytes()
+                unchanged = unchanged + 1 if key == last_front else 0
+                last_front = key
+                if unchanged >= self.stall:
+                    break
 
         return G, F, CV

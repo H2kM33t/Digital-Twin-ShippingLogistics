@@ -120,12 +120,13 @@ class RouteGenerator:
             self.graph,
         )
 
-        # Local km frame + numpy view of the graph for storm maths
+        # numpy (ECEF) view of the graph for storm maths, plus a local km
+        # frame for consumers that want flat coordinates (state estimator)
         self.frame = LocalFrame(
             (origin[0] + destination[0]) / 2.0,
             (origin[1] + destination[1]) / 2.0,
         )
-        self.geometry = GraphGeometry(self.graph, self.frame)
+        self.geometry = GraphGeometry(self.graph)
         self.hazards = None
 
     # ---------------------------------------------------------
@@ -140,7 +141,7 @@ class RouteGenerator:
                 "Graph has not been built. Call build_graph() first."
             )
 
-        self.hazards = HazardField(storms, self.frame) if storms else None
+        self.hazards = HazardField(storms) if storms else None
 
     def clear_storms(self) -> None:
         """Remove all storms and restore every edge to its static cost."""
@@ -165,18 +166,13 @@ class RouteGenerator:
 
         assert self.graph is not None and self.geometry is not None
 
-        field = self.hazards or HazardField([], self.frame)
-
-        ship_xy = (0.0, 0.0)
-        if ship_position is not None:
-            x, y = self.frame.to_xy(*ship_position)
-            ship_xy = (float(x), float(y))
+        field = self.hazards or HazardField([])
 
         return field.apply(
             self.graph,
             self.geometry,
             t,
-            ship_xy,
+            ship_position,
             speed_kmh,
             from_column=from_column,
             protected_nodes=protected_nodes,

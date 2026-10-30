@@ -2,3 +2,5 @@ numpy
 pandas
 flask
 pytest
+searoute
+global-land-mask

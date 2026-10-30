@@ -33,9 +33,9 @@ from .graph_builder import GraphBuilder, GraphBuilderConfig
 from .hazard import (
     HazardField,
     Storm,
-    LocalFrame,
     required_corridor_width_km,
 )
+from .ocean import resample, sea_route
 from .route_generator import RouteGenerator
 
 Coordinate = Tuple[float, float]
@@ -59,6 +59,11 @@ class VoyageConfig:
     base_corridor_km: float = 240.0
     max_corridor_km: float = 1600.0
 
+    # ocean geometry: follow the real sea route and keep every lane at sea
+    ocean: bool = True
+    column_spacing_km: float = 40.0   # target spacing along the route
+    max_columns: int = 200
+
     # decision thresholds
     risk_weight: float = 8.0      # extra cost = weight * risk * distance
     continue_risk: float = 0.15   # plan with peak risk below this is "safe"
@@ -76,6 +81,10 @@ def _haversine_km(a: Coordinate, b: Coordinate) -> float:
     h = (math.sin((lat2 - lat1) / 2) ** 2
          + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2)
     return 2 * 6371.0 * math.asin(math.sqrt(h))
+
+
+def _gc_samples(a: Coordinate, b: Coordinate, n: int = 25) -> List[Coordinate]:
+    return resample([a, b], n)
 
 
 def _round_pt(p: Coordinate) -> list:
@@ -114,26 +123,37 @@ class VoyageSimulator:
 
         c = self.cfg
 
-        frame = LocalFrame(
-            (self.origin[0] + self.destination[0]) / 2.0,
-            (self.origin[1] + self.destination[1]) / 2.0,
-        )
+        if c.ocean:
+            sea = sea_route(self.origin, self.destination)
+            centerline, self.route_km = sea["path"], sea["length_km"]
+            self.passages = sea["passages"]
+            columns = int(round(self.route_km / c.column_spacing_km)) + 1
+            columns = min(max(columns, c.longitudinal_resolution), c.max_columns)
+        else:
+            centerline = [self.origin, self.destination]
+            self.route_km = _haversine_km(self.origin, self.destination)
+            self.passages = []
+            columns = c.longitudinal_resolution
+        self.centerline = centerline
 
-        straight_km = _haversine_km(self.origin, self.destination)
-        horizon_h = 2.0 * straight_km / self.speed_kmh
+        horizon_h = 2.0 * self.route_km / self.speed_kmh
+        # long voyages need more simulated hours than the default cap
+        self.max_hours = max(c.max_hours, 4.0 * self.route_km / self.speed_kmh)
 
         self.corridor_km = required_corridor_width_km(
-            frame, self.origin, self.destination, self.storms,
-            c.base_corridor_km, c.max_corridor_km, horizon_h,
+            centerline if c.ocean else _gc_samples(self.origin, self.destination),
+            self.storms, c.base_corridor_km, c.max_corridor_km, horizon_h,
         )
 
         lanes = int(round(self.corridor_km / c.lane_spacing_km)) + 1
         lanes = max(7, lanes if lanes % 2 == 1 else lanes + 1)
 
         builder = GraphBuilder(GraphBuilderConfig(
-            longitudinal_resolution=c.longitudinal_resolution,
+            longitudinal_resolution=columns,
             lateral_resolution=lanes,
             corridor_width_km=self.corridor_km,
+            centerline_path=centerline if c.ocean else None,
+            land_mask=c.ocean,
         ))
 
         gen = RouteGenerator(builder)
@@ -243,7 +263,7 @@ class VoyageSimulator:
 
         baseline = self.baseline_route()
 
-        field = gen.hazards or HazardField([], gen.frame)
+        field = gen.hazards or HazardField([])
 
         # Ship state -----------------------------------------------------
         pos: Coordinate = self._coord(gen.start_node)
@@ -270,7 +290,7 @@ class VoyageSimulator:
             first = gen.replan_from(gen.start_node)
         plan = list(first.node_ids)
 
-        steps = int(cfg.max_hours / cfg.dt_h)
+        steps = int(self.max_hours / cfg.dt_h)
 
         for _ in range(steps):
 
@@ -290,8 +310,7 @@ class VoyageSimulator:
             best = gen.replan_from(nxt)
             best_nodes = list(best.node_ids) if best else None
 
-            ship_xy = gen.frame.to_xy(*pos)
-            ship_risk = field.point_risk(float(ship_xy[0]), float(ship_xy[1]), t)
+            ship_risk = field.point_risk(pos[0], pos[1], t)
 
             best_risk = (
                 self._path_risk(best_nodes, snap.edge_risk) if best_nodes else 1.0

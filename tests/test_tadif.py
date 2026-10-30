@@ -175,8 +175,10 @@ def test_storm_detection_triggers_a_twin_decided_detour(in_flight):
     s = in_flight["summary"]
     assert s["arrived"] and s["extra_km"] > 0
     assert any(x["name"] == "storm_detected" and x["t"] == 18 for x in in_flight["trigger_log"])
-    dev = [e for e in in_flight["events"] if e["status"] == "DEVIATING"]
-    assert dev and dev[0]["t"] == 18
+    # the twin reacts at detection: re-route now, or wait and then re-route
+    react = [e for e in in_flight["events"] if e["status"] in ("DEVIATING", "HALTED")]
+    assert react and react[0]["t"] == 18
+    assert any(e["status"] == "DEVIATING" for e in in_flight["events"])
     _never_in_core(in_flight)
 
 

@@ -1,6 +1,9 @@
 # TwinRoute-M: a closed-loop Digital Twin for storm routing (TADIF)
 
-Place and drag moving storms on a map. The Digital Twin estimates where the
+Type any start and end port (or "lat, lon"). The ship follows the real sea
+route (shipping lanes through Suez, Malacca, Panama, Hormuz...), and every
+detour the twin considers stays in the water. Place and drag moving storms on
+the map. The Digital Twin estimates where the
 ship is, decides **when** it needs to re-plan, searches routes, speeds and
 waiting times against an ensemble of possible storm tracks, rejects anything
 too risky (CVaR), ranks the rest with an explanation, and **steers the
@@ -15,8 +18,16 @@ table below says how far each part goes.
     pip install -r requirements.txt
     python app.py
     # open http://127.0.0.1:5000   (internet needed for map tiles)
+    # another port:  PORT=5050 python app.py
 
 ## Use the map
+
+- **Route**: type a start and end, as a port name ("Shanghai", "Jebel Ali",
+  "Rotterdam, Netherlands"; suggestions come from about 3,900 ports) or
+  "lat, lon", then **Plan sea route** or Enter. ⇄ swaps them. The panel shows
+  the sea distance and the straits or canals passed. Each new route gets a
+  demo storm timed to cross the lane about when the ship gets there
+  (**Reset demo** brings it back).
 
 - **＋ Add storm**, then click the sea. Drag the numbered marker to move it.
 - Storm sliders: radius, severity, heading, storm speed, lifetime, and
@@ -38,8 +49,9 @@ table below says how far each part goes.
 
 ## How it fits together
 
-    storms ─► routing/            graph lattice, hazard field, A* (seeds + legacy engine)
-                 │
+    start/end ─► routing/ocean.py   port lookup, searoute sea lane, 1 km land mask
+    storms ─► routing/            sea-lane lattice (land nodes/edges removed),
+                 │                hazard field on the sphere, A* (legacy engine)
     tadif/orchestrator.py  TadifVoyage: every hour
        estimation.py   Φ_state     UKF on noisy GPS (+ commanded velocity), NIS statistics
        twin_bridge.py              wind / waves / visibility near storms
@@ -72,7 +84,7 @@ dominant_criteria / weight_sensitivity / twin_confidence_at_decision`,
 | Operator | Implemented | Simplified or missing |
 |---|---|---|
 | Φ_state | UKF on [x, y, vx, vy] with GPS noise, commanded-velocity input, NIS-based sensor confidence, R inflation on drift | no PINN process model; hull degradation is estimated by Φ_learn instead |
-| Φ_graph | time-dependent storm hazard on the lattice, evaluated at arrival time | no real forecast data or land mask |
+| Φ_graph | lattice along the real sea lane, land nodes and land-crossing edges removed (1 km mask), time-dependent storm hazard evaluated at arrival time, storm geometry on the sphere | no real forecast data, bathymetry or under-keel clearance |
 | Φ_scenario | perturbed heading/speed/radius/severity/position, error growing with lead time; k-means reduction with weights | not driven by real NWP ensembles; spread is configured, not learned |
 | Φ_sim | vectorized batch sim with speed loss and added resistance, cubic fuel law × θ | one fixed-point pass, no RK4 or hull stress |
 | Φ_weight | six criteria, Table 5.1 profiles, Eq. 5.21 softmax with deadline, weather and confidence pressures | no operator override |
@@ -94,13 +106,35 @@ even when the ship was already late.
 
 `tests/test_tadif.py` covers each operator and the closed loop: calm voyage,
 in-flight detour, waiting out a big storm, forced transit, GPS fault, the
-decision schema, and learning across voyages. The original engine's tests
+decision schema, and learning across voyages. `tests/test_ocean.py` covers
+sea routing: Suez routing, typed places, every planned route staying in the
+water, storm motion on the sphere, and the API. The original engine's tests
 (`test_storm_reroute.py`, `test_twin_bridge.py`) still pass.
+
+## Performance
+
+- Seed routes come from dynamic programming over the lattice (a DAG), not
+  repeated A* searches.
+- Storm distances use dot products on Earth-centred coordinates, with no
+  trigonometry per element.
+- Once per forecast, the twin works out which route columns any scenario storm
+  can reach; hazard maths is skipped elsewhere (it is exactly zero there).
+- If no seed route meets any storm, NSGA-III is skipped (spec Alg. 14.3
+  "no-op" fast path).
+- NSGA-III warm-starts from the previous cycle's population and stops when
+  its first front stalls.
+- Frames reference shared plan paths instead of repeating them.
+
+Typical times: about 2 s for a calm regional voyage, 2–3 s for an in-flight
+storm, 7 s for a large storm that forces waiting, and about 12 s for
+Shanghai → Rotterdam (19,600 km).
 
 ## Limits
 
-- The corridor is a synthetic great-circle band with no land mask: keep storms
-  and routes at sea. Mumbai → Dubai is fixed in `app.py`.
-- Storm geometry uses a flat-earth km frame (a few percent error at this scale).
+- Sea lanes come from searoute's maritime network and the land mask is about
+  1 km; there is no bathymetry, so shallow water is not avoided. The centre
+  lane (the sea lane itself) is always allowed, so narrow canals and port
+  approaches finer than the mask still work.
+- Storms move along great circles at constant speed and do not weaken over
+  land.
 - The true hull fuel factor (1.12) is a fixed demo value, unknown to the twin.
-- A voyage takes about 2–8 s to simulate (more with several large storms).
