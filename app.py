@@ -5,8 +5,8 @@ Local web app for the storm-rerouting demo.
 
     python app.py            ->  http://127.0.0.1:5000
 
-Type a start and an end (a port name such as "Mumbai" or "Rotterdam", or
-"lat, lon"). The voyage follows the real sea route (routing/ocean.py:
+Type a start, an end and any number of stops in between (a port name such
+as "Mumbai" or "Rotterdam", or "lat, lon"). The voyage follows the real sea route (routing/ocean.py:
 shipping lanes through Suez, Malacca, Panama...), and every detour the
 twin considers stays in the water (1 km land mask). Place, drag and tune
 storms on the map; every change is POSTed to /api/simulate, which runs one
@@ -31,7 +31,8 @@ import os
 from flask import Flask, jsonify, request, send_from_directory
 
 from routing.hazard import Storm
-from routing.ocean import haversine_km, resample, resolve_place, sea_route, search_ports
+from routing.ocean import (haversine_km, resample, resolve_place, sea_route, search_ports,
+                           unwrap_lons)
 from routing.voyage import VoyageConfig, VoyageSimulator
 from tadif.learning import KnowledgeBase
 from tadif.objectives import PROFILES
@@ -44,7 +45,9 @@ DEFAULT_ORIGIN = "Mumbai, India"
 DEFAULT_DESTINATION = "Dubai, United Arab Emirates"
 
 MAX_STORMS = 8
+MAX_STOPS = 8
 MIN_ROUTE_KM = 150
+MIN_LEG_KM = 20
 KB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "knowledge_base.json")
 
 
@@ -75,16 +78,45 @@ class RouteError(ValueError):
     pass
 
 
-def resolve_route(origin_text: str, destination_text: str):
+def resolve_route(origin_text: str, destination_text: str, via_texts=()):
+    """Resolve start, intermediate stops (in order) and end."""
+
+    via_texts = [v for v in (via_texts or []) if isinstance(v, str) and v.strip()]
+    if len(via_texts) > MAX_STOPS:
+        raise RouteError(f"At most {MAX_STOPS} intermediate stops.")
     o = resolve_place(origin_text or DEFAULT_ORIGIN)
     d = resolve_place(destination_text or DEFAULT_DESTINATION)
     if o is None:
         raise RouteError(f"Could not find a port or coordinate for start: {origin_text!r}")
     if d is None:
         raise RouteError(f"Could not find a port or coordinate for end: {destination_text!r}")
-    if haversine_km((o["lat"], o["lon"]), (d["lat"], d["lon"])) < MIN_ROUTE_KM:
-        raise RouteError(f"Start and end are less than {MIN_ROUTE_KM} km apart.")
-    return o, d
+    via = []
+    for i, text in enumerate(via_texts):
+        v = resolve_place(text)
+        if v is None:
+            raise RouteError(f"Could not find a port or coordinate for stop {i + 1}: {text!r}")
+        via.append(v)
+    chain = [o] + via + [d]
+    for a, b in zip(chain[:-1], chain[1:]):
+        if haversine_km((a["lat"], a["lon"]), (b["lat"], b["lon"])) < MIN_LEG_KM:
+            raise RouteError(f"{a['label']} and {b['label']} are less than {MIN_LEG_KM} km apart.")
+    if sum(haversine_km((a["lat"], a["lon"]), (b["lat"], b["lon"]))
+           for a, b in zip(chain[:-1], chain[1:])) < MIN_ROUTE_KM:
+        raise RouteError(f"The whole voyage is shorter than {MIN_ROUTE_KM} km.")
+    return o, d, via
+
+
+def multi_leg_route(chain) -> dict:
+    """Sea route through every point of `chain`, legs joined."""
+
+    path, km, passages, legs = [], 0.0, [], []
+    for a, b in zip(chain[:-1], chain[1:]):
+        leg = sea_route((a["lat"], a["lon"]), (b["lat"], b["lon"]))
+        path += leg["path"] if not path else leg["path"][1:]
+        km += leg["length_km"]
+        legs.append(round(leg["length_km"], 1))
+        passages += [p for p in leg["passages"] if p not in passages]
+    return {"path": unwrap_lons(path), "length_km": km, "passages": passages, "legs": legs}
 
 
 def demo_storm(path, speed_kts: float = 16.0) -> dict:
@@ -141,13 +173,15 @@ def route():
     """Resolve the two places and return the sea route (fast preview)."""
 
     try:
-        o, d = resolve_route(request.args.get("origin", ""), request.args.get("destination", ""))
-        sea = sea_route((o["lat"], o["lon"]), (d["lat"], d["lon"]))
+        o, d, via = resolve_route(request.args.get("origin", ""),
+                                  request.args.get("destination", ""),
+                                  request.args.getlist("via"))
+        sea = multi_leg_route([o] + via + [d])
     except RouteError as e:
         return jsonify({"error": str(e)}), 400
-    return jsonify({"origin": o, "destination": d, "path": sea["path"],
-                    "km": round(sea["length_km"], 1), "passages": sea["passages"],
-                    "demo_storm": demo_storm(sea["path"])})
+    return jsonify({"origin": o, "destination": d, "via": via, "path": sea["path"],
+                    "km": round(sea["length_km"], 1), "legs": sea["legs"],
+                    "passages": sea["passages"], "demo_storm": demo_storm(sea["path"])})
 
 
 @app.post("/api/simulate")
@@ -158,11 +192,15 @@ def simulate():
     if not isinstance(raw, list) or len(raw) > MAX_STORMS:
         return jsonify({"error": f"storms must be a list of at most {MAX_STORMS}"}), 400
 
+    via_raw = body.get("via", [])
+    if not isinstance(via_raw, list):
+        return jsonify({"error": "via must be a list of places"}), 400
     try:
-        o, d = resolve_route(body.get("origin", ""), body.get("destination", ""))
+        o, d, via = resolve_route(body.get("origin", ""), body.get("destination", ""), via_raw)
     except RouteError as e:
         return jsonify({"error": str(e)}), 400
     origin, destination = (o["lat"], o["lon"]), (d["lat"], d["lon"])
+    via_pts = [(v["lat"], v["lon"]) for v in via]
 
     storms = [parse_storm(s, i) for i, s in enumerate(raw) if isinstance(s, dict)]
     speed = _num(body, "speed_kts", 16, 4, 40)
@@ -171,7 +209,7 @@ def simulate():
     try:
         if body.get("engine") == "graph":
             cfg = VoyageConfig(speed_kts=speed, halt_risk=halt_risk)
-            voyage = VoyageSimulator(origin, destination, storms, cfg)
+            voyage = VoyageSimulator(origin, destination, storms, cfg, via=via_pts)
             result = voyage.run(observer=TwinObserver(origin, destination))
             result["engine"] = "graph"
         else:
@@ -185,8 +223,10 @@ def simulate():
                 gps_fault_h=gps_fault or None,
                 # every run starts from the stored knowledge; only "learn" writes back
                 kb_path=KB_PATH, kb_write=bool(body.get("learn")),
+                port_stay_h=_num(body, "port_stay_h", 6, 0, 96),
             )
-            voyage = TadifVoyage(origin, destination, storms, cfg)
+            voyage = TadifVoyage(origin, destination, storms, cfg, via=via_pts,
+                                 stop_names=[v["label"] for v in via])
             result = voyage.run()
             result["engine"] = "tadif"
             result["knowledge"] = _kb_view()
@@ -196,6 +236,7 @@ def simulate():
     result["origin"] = origin
     result["destination"] = destination
     result["origin_label"], result["destination_label"] = o["label"], d["label"]
+    result["via"] = via
     result["sea_route"] = {"path": [[round(a, 4), round(b, 4)] for a, b in voyage.centerline],
                            "km": round(voyage.route_km, 1), "passages": voyage.passages}
     return jsonify(result)

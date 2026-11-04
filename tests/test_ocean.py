@@ -77,3 +77,54 @@ def test_api_plans_typed_route_and_simulates():
                                         "storms": [r["demo_storm"]]}).get_json()
     assert sim["summary"]["arrived"] and sim["paths"]
     assert sim["origin_label"].startswith("Mumbai")
+
+
+# ======================================================================
+# multi-stop voyages
+# ======================================================================
+
+COLOMBO = (6.9308, 79.8486)
+
+
+@pytest.fixture(scope="module")
+def two_leg():
+    v = TadifVoyage(MUMBAI, DUBAI, [], via=[COLOMBO], stop_names=["Colombo"])
+    return v, v.run()
+
+
+def test_route_is_forced_through_every_stop(two_leg):
+    v, res = two_leg
+    assert len(v.via_columns) == 1
+    c = v.via_columns[0]
+    assert haversine_km(v.centerline[c], COLOMBO) < 1
+    # at the port column only the centre lane exists, so every path uses it
+    lat = v._lat
+    assert lat.reach[c].sum() == 1 and lat.reach[c, lat.nlanes // 2]
+
+
+def test_ship_calls_at_the_stop_and_stays(two_leg):
+    v, res = two_leg
+    s = res["summary"]
+    assert s["arrived"]
+    stop = s["stops"][0]
+    assert stop["arrived_h"] is not None
+    assert stop["departed_h"] - stop["arrived_h"] == pytest.approx(6, abs=1.0)
+    assert s["port_hours"] == pytest.approx(6, abs=1.0)
+    assert any(f["status"] == "IN_PORT" and haversine_km(tuple(f["ship"]), COLOMBO) < 2
+               for f in res["frames"])
+    assert any(x["name"] == "port_departure" for x in res["trigger_log"])
+    # going via Colombo is much longer than the direct sea route
+    assert s["sea_route_km"] > 1.5 * sea_route(MUMBAI, DUBAI)["length_km"]
+
+
+def test_api_accepts_stops():
+    from app import app
+    c = app.test_client()
+    r = c.get("/api/route?origin=Mumbai&destination=Dubai&via=Colombo").get_json()
+    assert [v["label"] for v in r["via"]] == ["Colombo, Sri Lanka"] and len(r["legs"]) == 2
+    bad = c.get("/api/route?origin=Mumbai&destination=Dubai&via=nowhere-port-xyz")
+    assert bad.status_code == 400
+    sim = c.post("/api/simulate", json={"origin": "Mumbai", "destination": "Dubai",
+                                        "via": ["Colombo"], "port_stay_h": 3}).get_json()
+    assert sim["summary"]["stops"][0]["arrived_h"] is not None
+    assert sim["summary"]["port_hours"] == pytest.approx(3, abs=1.0)

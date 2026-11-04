@@ -81,6 +81,9 @@ class GraphBuilderConfig:
     # the sea route itself and always stays navigable (canals, port
     # approaches narrower than the mask resolution).
     land_mask: bool = False
+    # Columns where the ship must call at a port: only the centre lane
+    # (the stop itself) is navigable there, so every route passes through.
+    via_columns: Tuple[int, ...] = ()
 
 
 # ==============================================================
@@ -143,8 +146,10 @@ class GraphBuilder:
 
         if self.config.centerline_path:
             from .ocean import resample
-            centerline = resample(self.config.centerline_path,
-                                  self.config.longitudinal_resolution)
+            path = list(self.config.centerline_path)
+            # a path already sampled per column (multi-leg voyages) is used as is
+            centerline = (path if len(path) == self.config.longitudinal_resolution
+                          else resample(path, self.config.longitudinal_resolution))
         else:
             centerline = self.generate_centerline(origin, destination)
 
@@ -153,6 +158,13 @@ class GraphBuilder:
         graph = self._generate_graph_nodes(corridor)
 
         self._water = self._water_mask(corridor) if self.config.land_mask else None
+        if self.config.via_columns:
+            if self._water is None:
+                self._water = np.ones((corridor.longitudinal_resolution,
+                                       corridor.lateral_resolution), bool)
+            for x in self.config.via_columns:
+                self._water[x, :] = False
+                self._water[x, corridor.lateral_resolution // 2] = True
         if self._water is not None:
             for (x, y), node_id in graph.node_lookup.items():
                 if not self._water[x, y]:
@@ -514,7 +526,7 @@ class GraphBuilder:
             yt = np.clip(yt, 0, ny - 1)
             a, b = P[:-1][:, ys], P[1:][:, yt]           # (nx-1, ny, 2)
             fine = valid[None].repeat(nx - 1, 0)
-            for f in (0.25, 0.5, 0.75):
+            for f in ((0.25, 0.5, 0.75) if self.config.land_mask else ()):
                 q = a + f * (b - a)
                 fine &= is_water(q[..., 0], q[..., 1])
             fine &= self._water[:-1][:, ys] & self._water[1:][:, yt]

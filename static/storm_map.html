@@ -52,9 +52,12 @@
   .wbar span:first-child { color:var(--muted); } .wbar span:last-child { text-align:right; }
   .note { font-size:12px; color:var(--muted); margin-top:6px; }
   .box { border:1px solid var(--line); border-radius:8px; padding:8px; background:#0f1a26; }
-  .route-row { display:grid; grid-template-columns:1fr auto 1fr; gap:6px; align-items:center; }
-  .route-row input { width:100%; min-width:0; }
-  #routeInfo { font-size:12px; color:var(--muted); margin-top:6px; min-height:16px; }
+  .stop-row { display:flex; gap:6px; align-items:center; margin:4px 0; }
+  .stop-row input { flex:1; min-width:0; }
+  .stop-row button { padding:4px 7px; font-size:12px; }
+  .stop-tag { flex:none; width:20px; height:20px; border-radius:50%; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; background:#f59e0b; }
+  .pmark { width:18px; height:18px; border-radius:50%; background:#f59e0b; border:2px solid #fff; color:#111; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  #routeInfo { font-size:12px; color:var(--muted); margin-top:6px; min-height:16px; white-space:pre-line; }
   #busy { display:none; font-size:11px; color:#fcd34d; margin-left:8px; }
   #busy.on { display:inline; }
   #busy::before { content:''; display:inline-block; width:9px; height:9px; margin-right:5px; border:2px solid #fcd34d; border-top-color:transparent; border-radius:50%; animation:spin .8s linear infinite; vertical-align:-1px; }
@@ -71,13 +74,18 @@
     <div class="sub">Type a start and end port (or "lat, lon"). The ship follows the real sea route, and every detour stays in the water. Place, drag and tune storms: the Digital Twin decides when to re-plan, searches routes, speeds and waiting times against a storm-scenario ensemble, filters them by CVaR and steers the ship.</div>
 
     <h2>Route</h2>
-    <div class="route-row">
-      <input type="text" id="from" list="placesFrom" placeholder="From: port or lat, lon" autocomplete="off">
-      <button id="btnSwap" title="Swap">⇄</button>
-      <input type="text" id="to" list="placesTo" placeholder="To: port or lat, lon" autocomplete="off">
-    </div>
+    <div class="stop-row"><span class="stop-tag" style="background:#2fbf71">A</span>
+      <input type="text" id="from" list="placesFrom" placeholder="From: port or lat, lon" autocomplete="off"></div>
+    <div id="stops"></div>
+    <div class="stop-row"><span class="stop-tag" style="background:#3b82f6">B</span>
+      <input type="text" id="to" list="placesTo" placeholder="To: port or lat, lon" autocomplete="off"></div>
     <datalist id="placesFrom"></datalist><datalist id="placesTo"></datalist>
-    <div class="row"><button id="btnRoute">Plan sea route</button><span class="sub" style="margin:0">adds a demo storm across the route</span></div>
+    <div class="row">
+      <button id="btnAddStop">＋ Add stop</button>
+      <button id="btnSwap" title="Reverse the voyage">⇅ Reverse</button>
+      <button id="btnRoute" class="on">Plan sea route</button>
+    </div>
+    <div class="sub" style="margin:2px 0 0">Stops are port calls in order; the ship ties up at each for the port stay. Planning adds a demo storm across the route.</div>
     <div id="routeInfo"></div>
 
     <h2>Storms</h2>
@@ -95,6 +103,7 @@
     <div class="field tadif-only"><label>Mission profile</label><select id="profile"></select></div>
     <div class="field"><label>Service speed (kn)</label><input type="range" id="shipSpeed" min="6" max="30" step="1" value="16"><output id="shipSpeedO">16</output></div>
     <div class="field"><label id="haltLabel">Risk limit (CVaR)</label><input type="range" id="haltRisk" min="0.2" max="1" step="0.05" value="0.55"><output id="haltRiskO">0.55</output></div>
+    <div class="field tadif-only"><label>Port stay (h)</label><input type="range" id="portStay" min="0" max="48" step="1" value="6"><output id="portStayO">6</output></div>
     <div class="field tadif-only"><label>Deadline slack</label><input type="range" id="slack" min="0" max="0.6" step="0.05" value="0.15"><output id="slackO">0.15</output></div>
     <div class="field tadif-only"><label>GPS fault at (h, 0=off)</label><input type="range" id="gpsFault" min="0" max="80" step="1" value="0"><output id="gpsFaultO">0</output></div>
 
@@ -151,7 +160,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const COLORS = {CRUISING:'#2fbf71', DEVIATING:'#f59e0b', REJOINING:'#3b82f6',
-                HALTED:'#ef4444', FORCED:'#a855f7', ARRIVED:'#10b981'};
+                HALTED:'#ef4444', FORCED:'#a855f7', ARRIVED:'#10b981', IN_PORT:'#14b8a6'};
 const FIELDS = [
   ['radius_km','Radius (km)',20,1000,10], ['severity','Severity',0.05,1,0.05],
   ['heading_deg','Heading (°)',0,360,5], ['speed_kmh','Storm speed (km/h)',0,80,1],
@@ -249,29 +258,68 @@ function hookPlaces(inputId, listId){
 }
 hookPlaces('from','placesFrom'); hookPlaces('to','placesTo');
 $('btnRoute').onclick=()=>planRoute();
-$('btnSwap').onclick=()=>{ const a=$('from').value; $('from').value=$('to').value; $('to').value=a; planRoute(); };
+
+// ---------- intermediate stops ----------
+const MAX_STOPS=8;
+let stopSeq=0;
+function stopInputs(){ return [...document.querySelectorAll('#stops input')]; }
+function stopValues(){ return stopInputs().map(i=>i.value.trim()).filter(Boolean); }
+function addStop(value=''){
+  if(stopInputs().length>=MAX_STOPS) return;
+  const id='stop'+(++stopSeq), row=document.createElement('div'); row.className='stop-row';
+  const tag=document.createElement('span'); tag.className='stop-tag';
+  const inp=document.createElement('input'); inp.type='text'; inp.id=id; inp.value=value;
+  inp.placeholder='Stop: port or lat, lon'; inp.autocomplete='off'; inp.setAttribute('list',id+'L');
+  const dl=document.createElement('datalist'); dl.id=id+'L';
+  const up=document.createElement('button'); up.textContent='↑'; up.title='Move up';
+  up.onclick=()=>{ const p=row.previousElementSibling; if(p){ row.parentNode.insertBefore(row,p); numberStops(); } };
+  const del=document.createElement('button'); del.textContent='✕'; del.title='Remove stop';
+  del.onclick=()=>{ row.remove(); numberStops(); };
+  row.append(tag,inp,up,del,dl); $('stops').append(row);
+  hookPlaces(id, id+'L'); numberStops(); if(!value) inp.focus();
+}
+function numberStops(){ document.querySelectorAll('#stops .stop-tag').forEach((t,i)=>t.textContent=i+1);
+  $('btnAddStop').disabled = stopInputs().length>=MAX_STOPS; }
+$('btnAddStop').onclick=()=>addStop();
+$('btnSwap').onclick=()=>{
+  const seq=[$('from').value, ...stopInputs().map(i=>i.value), $('to').value].reverse();
+  $('from').value=seq[0]; $('to').value=seq[seq.length-1];
+  stopInputs().forEach((inp,i)=>inp.value=seq[i+1]); planRoute(); };
 
 async function planRoute(){
   setBusy(true); $('err').textContent='';
   try{
-    const q='/api/route?origin='+encodeURIComponent($('from').value)+'&destination='+encodeURIComponent($('to').value);
+    const q='/api/route?origin='+encodeURIComponent($('from').value)+'&destination='+encodeURIComponent($('to').value)
+      + stopValues().map(v=>'&via='+encodeURIComponent(v)).join('');
     const res=await fetch(q); const r=await res.json();
     if(!res.ok) throw new Error(r.error||res.statusText);
     S.route=r; $('from').value=r.origin.label; $('to').value=r.destination.label;
-    S.voyageH=Math.ceil(r.km/(+$('shipSpeed').value*1.852));
-    showRouteInfo(r.km, r.passages);
+    const filled=stopInputs().filter(i=>i.value.trim());
+    stopInputs().filter(i=>!i.value.trim()).forEach(i=>i.closest('.stop-row').remove());
+    filled.forEach((inp,i)=>{ if(r.via[i]) inp.value=r.via[i].label; }); numberStops();
+    S.voyageH=Math.ceil(r.km/(+$('shipSpeed').value*1.852)) + r.via.length*(+$('portStay').value);
+    showRouteInfo(r.km, r.passages, r.legs, [r.origin, ...r.via, r.destination]);
     L_base.clearLayers(); L.polyline(r.path,{color:'#2dd4bf',weight:2,opacity:.8}).addTo(L_base);
+    drawStops(r.via);
     map.fitBounds(L.latLngBounds(r.path).pad(0.15));
     S.storms=[norm({...r.demo_storm})]; S.sel=0; S.frame=0;
     refreshUI(); drawStormMarkers(); await simulate();
   }catch(e){ $('err').textContent='Error: '+e.message; setBusy(false); }
 }
-function showRouteInfo(km, passages){
+function showRouteInfo(km, passages, legs, chain){
   const via = passages && passages.length ? ' via '+passages.map(passageName).join(', ') : '';
-  $('routeInfo').textContent=`${Math.round(km).toLocaleString()} km by sea${via} · about ${Math.round(km/(+$('shipSpeed').value*1.852))} h at service speed`;
+  let txt=`${Math.round(km).toLocaleString()} km by sea${via} · about ${Math.round(km/(+$('shipSpeed').value*1.852))} h sailing`;
+  if(legs && legs.length>1 && chain) txt += '\n' + legs.map((l,i)=>`${chain[i].label.split(',')[0]} → ${chain[i+1].label.split(',')[0]}: ${Math.round(l).toLocaleString()} km`).join(' · ');
+  $('routeInfo').textContent=txt;
+}
+const L_stops = L.layerGroup().addTo(map);
+function drawStops(via){
+  L_stops.clearLayers();
+  (via||[]).forEach((v,i)=>{ L.marker([v.lat,v.lon],{icon:L.divIcon({className:'',iconSize:[18,18],iconAnchor:[9,9],
+    html:`<div class="pmark">${i+1}</div>`}),zIndexOffset:900}).bindTooltip(`Stop ${i+1}: ${v.label}`).addTo(L_stops); });
 }
 function setBusy(on){ $('busy').classList.toggle('on',on); }
-for (const id of ['shipSpeed','haltRisk','slack','gpsFault']) {
+for (const id of ['shipSpeed','haltRisk','slack','gpsFault','portStay']) {
   const el=$(id), o=$(id+'O');
   el.oninput=()=>{ o.textContent=el.value; clearTimeout(liveT); liveT=setTimeout(simulate,250);
     if(id==='shipSpeed' && S.data){ S.voyageH=Math.ceil(S.data.sea_route.km/(+el.value*1.852)); showRouteInfo(S.data.sea_route.km, S.data.sea_route.passages); } };
@@ -294,7 +342,8 @@ async function simulate(learn=false){
   try{
     const res=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({storms:S.storms, engine:$('engine').value, profile:$('profile').value,
-                           origin:$('from').value, destination:$('to').value,
+                           origin:$('from').value, destination:$('to').value, via:stopValues(),
+                           port_stay_h:+$('portStay').value,
                            speed_kts:+$('shipSpeed').value, halt_risk:+$('haltRisk').value,
                            deadline_slack:+$('slack').value, gps_fault_h:+$('gpsFault').value, learn})});
     const data=await res.json(); if(my!==reqId) return;
@@ -302,7 +351,8 @@ async function simulate(learn=false){
     $('err').textContent=''; setBusy(false);
     S.data=data; const sc=$('scrub'); sc.max=data.frames.length-1;
     S.frame=Math.min(S.frame,data.frames.length-1); sc.value=S.frame;
-    showRouteInfo(data.sea_route.km, data.sea_route.passages);
+    showRouteInfo(data.sea_route.km, data.sea_route.passages, S.route && S.route.legs,
+                  S.route && [S.route.origin, ...S.route.via, S.route.destination]);
     drawStatic(); buildSummary(); buildEvents(); buildKB(); S.trailUpTo=-1; drawFrame(S.frame,true);
   }catch(e){ if(my===reqId){ $('err').textContent='Error: '+e.message; setBusy(false); } }
 }
@@ -313,6 +363,7 @@ function drawStatic(){
   L.polyline(d.baseline,{color:'#94a3b8',weight:3,dashArray:'6 8',opacity:.9}).bindTooltip('Storm-free route').addTo(L_base);
   L.circleMarker(d.origin,{radius:6,color:'#fff',fillColor:'#2fbf71',fillOpacity:1}).bindTooltip(d.origin_label).addTo(L_base);
   L.circleMarker(d.destination,{radius:6,color:'#fff',fillColor:'#3b82f6',fillOpacity:1}).bindTooltip(d.destination_label).addTo(L_base);
+  drawStops(d.via);
   d.storm_tracks.forEach(tr=>{ if(tr.length>1){
     L.polyline(tr,{color:'#ef4444',weight:2,dashArray:'2 6',opacity:.8}).addTo(L_tracks);
     tr.forEach((p,i)=>{ if(i%6===0) L.circleMarker(p,{radius:2,color:'#ef4444',fillOpacity:1}).addTo(L_tracks); }); }});
@@ -326,6 +377,8 @@ function buildSummary(){
   const rows=[['Arrived',s.arrived?'yes':'NO'],['Voyage time',s.total_hours+' h'],
     ['Distance sailed',s.sailed_km+' km'],['Storm-free distance',s.baseline_km+' km'],
     ['Detour',(s.extra_km>=0?'+':'')+s.extra_km+' km'],['Halted',s.halted_hours+' h']];
+  (s.stops||[]).forEach((p,i)=>rows.push([`Stop ${i+1}: ${p.name.split(',')[0]}`,
+    p.arrived_h==null ? 'not reached' : `in ${p.arrived_h} h → out ${p.departed_h ?? '—'} h`]));
   if(S.data.engine==='tadif') rows.push(
     ['Deadline',`${s.deadline_h} h (${s.on_time?'on time':'late'})`],
     ['Fuel burned',`${s.fuel_used_t} t (twin predicted ${s.fuel_predicted_t} t)`],

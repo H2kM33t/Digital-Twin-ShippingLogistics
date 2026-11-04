@@ -44,7 +44,7 @@ from .scenarios import ScenarioGenerator
 from .simulation import SPEED_LOSS, FuelModel, storm_hazard
 from routing.ocean import to_ecef
 from .simulation import VoyageSimulator as BatchSimulator
-from .triggers import STAGES, TriggerEngine
+from .triggers import STAGES, Trigger, TriggerEngine
 
 Coordinate = Tuple[float, float]
 KNOT_KMH = 1.852
@@ -67,6 +67,8 @@ class TadifConfig(VoyageConfig):
     deadline_h: Optional[float] = None
     hold_levels_h: tuple = (0, 2, 4, 8, 12, 24)    # wait-then-sail options
     hold_horizon_h: float = 6.0
+    port_stay_h: float = 6.0        # time alongside at every intermediate stop
+    hold_recheck_h: float = 3.0     # re-check interval while holding with no safe route
     switch_margin: float = 0.03     # hysteresis: keep the plan unless clearly beaten
     theta_true: float = 1.12        # real hull/fuel factor (unknown to the twin)
     gps_std_km: float = 0.5
@@ -80,8 +82,11 @@ class TadifVoyage(VoyageSimulator):
 
     def __init__(self, origin: Coordinate, destination: Coordinate,
                  storms: Optional[List[Storm]] = None,
-                 config: Optional[TadifConfig] = None) -> None:
-        super().__init__(origin, destination, storms, config or TadifConfig())
+                 config: Optional[TadifConfig] = None,
+                 via: Optional[List[Coordinate]] = None,
+                 stop_names: Optional[List[str]] = None) -> None:
+        super().__init__(origin, destination, storms, config or TadifConfig(), via)
+        self.stop_names = list(stop_names or [f"Stop {i + 1}" for i in range(len(self.via))])
 
     # ------------------------------------------------------------------
     # helpers
@@ -144,6 +149,9 @@ class TadifVoyage(VoyageSimulator):
         hg = lambda j: j / max(H - 1, 1)
         seeds = [np.r_[lanes.astype(float), sg(i), 0.0]
                  for lanes in routes.values() for i in range(L)]
+        # rows of the plan and the shortest route (sailing now), for the fast path
+        core_rows = [r * L + i for r, name in enumerate(routes)
+                     if name in ("incumbent", "direct") for i in range(L)]
         if may_hold:
             for name in ("incumbent", "direct", "storm"):
                 if name in routes:
@@ -162,19 +170,20 @@ class TadifVoyage(VoyageSimulator):
         def evaluate(G):
             lanes, idx, hidx = decode(G)
             r = sim.simulate(col0, lanes, self._levels[idx], est_p, t, ens_opt,
-                             theta, wx, self._deadline, holds[hidx])
+                             theta, wx, self._deadline_eff, holds[hidx])
             F = np.column_stack([r["fuel_t"], r["lateness_h"], r["safety"], r["robustness"]])
             return F, r["nominal_core"].astype(float), np.column_stack([lanes, idx, hidx])
 
         opt = NSGA3(n_obj=4, partitions=5, n_gen=cfg.nsga_generations, seed=cfg.seed + k,
                     stall=cfg.nsga_stall)
-        # Fast path (spec Alg. 14.3 "no-op"): if no seed - the shortest sea
-        # route included - meets any storm hazard in any scenario, storms do
-        # not shape this decision; only speed matters, and the seeds cover
-        # every speed level. Skip the evolutionary search.
+        # Fast path (spec Alg. 14.3 "no-op"): if neither the current plan nor
+        # the shortest sea route meets any storm hazard in any scenario,
+        # storms do not shape this decision (a detour can only be longer);
+        # only speed matters, and the seeds cover every speed level. Skip the
+        # evolutionary search.
         F_seed, _, _ = evaluate(seeds)
         opt.n_evals += len(seeds)
-        if ens_opt.n_storms and F_seed[:, 2:].max() > 0:
+        if ens_opt.n_storms and F_seed[core_rows, 2:].max() > 0:
             # Warm start: the previous search's final population, cut to the
             # columns still ahead, starts this one; it then needs fewer
             # generations to settle.
@@ -199,7 +208,7 @@ class TadifVoyage(VoyageSimulator):
         lanes_c, idx_c, hold_c = lanes_all[uniq], idx_all[uniq], holds[hidx_all[uniq]]
         speeds_c = self._levels[idx_c]
         res = sim.simulate(col0, lanes_c, speeds_c, est_p, t, ens_full, theta, wx,
-                           self._deadline, hold_c)
+                           self._deadline_eff, hold_c)
         rk = self._risk.assess(res, ens_full.weights)
         n_eval = opt.n_evals + len(lanes_c)
 
@@ -375,7 +384,13 @@ class TadifVoyage(VoyageSimulator):
         self._risk = RiskAssessor(RiskThresholds(alpha=alpha, cvar_max=cfg.halt_risk))
         self._ranker = DecisionRanker()
         self._deadline = (cfg.deadline_h if cfg.deadline_h else
-                          baseline_km / self.speed_kmh * (1.0 + cfg.deadline_slack))
+                          baseline_km / self.speed_kmh * (1.0 + cfg.deadline_slack)
+                          + cfg.port_stay_h * len(self.via))
+        self._deadline_eff = self._deadline
+        stop_nodes = {lat.node_id(c, lat.nlanes // 2): i for i, c in enumerate(self.via_columns)}
+        stops = [{"name": n, "lat": round(p[0], 4), "lon": round(p[1], 4),
+                  "arrived_h": None, "departed_h": None}
+                 for n, p in zip(self.stop_names, self.via)]
 
         weights_builder = AdaptiveWeightBuilder(cfg.profile)
         scen = ScenarioGenerator(frame_ll, n=cfg.n_scenarios, seed=cfg.seed + 7)
@@ -408,6 +423,8 @@ class TadifVoyage(VoyageSimulator):
         k = 0
         u_cmd = None
         hold_left = 0.0                 # hours left of the current planned wait
+        port_left = 0.0                 # hours left alongside at a stop
+        port_idx = None
 
         for _ in range(int(self.max_hours / cfg.dt_h)):
             nxt = plan[0]
@@ -427,6 +444,8 @@ class TadifVoyage(VoyageSimulator):
             wx = 1.0 + 0.3 * wx_sev            # weather resistance on top of storm hazard
 
             # 3. forecast + plan check ---------------------------------------
+            stays_ahead = sum(1 for n in plan if n in stop_nodes) * cfg.port_stay_h
+            self._deadline_eff = self._deadline - stays_ahead - port_left
             known = [s.name for s in self.storms if t >= s.detect_h]
             if ens_full is None:
                 ens_full = scen.sample_forecast(self.storms, t)
@@ -435,7 +454,7 @@ class TadifVoyage(VoyageSimulator):
             if self._sim.relevant_columns(ens_full)[self._column(nxt):].any() or waiting:
                 plan_eval = self._sim.simulate(self._column(nxt), lat.lanes_of(plan)[None], [speed],
                                                est_p, t, ens_full, learner.theta, wx,
-                                               self._deadline, hold_left if waiting else 0.0)
+                                               self._deadline_eff, hold_left if waiting else 0.0)
                 plan_cvar = float(weighted_cvar(plan_eval["peak_by_scenario"], ens_full.weights,
                                                 self._risk.thr.alpha)[0])
                 plan_core = bool(plan_eval["nominal_core"][0])
@@ -456,8 +475,17 @@ class TadifVoyage(VoyageSimulator):
                                     halted=waiting and hold_left <= 0,
                                     health_trigger=h["trigger"])
             fuel_err = 0.0
+            in_port = port_left > 0
+            if port_idx is not None and not in_port:
+                # leaving a port: the next leg is planned from the quay
+                trig = Trigger("port_departure", "high", "scenario",
+                               f"Departing {stops[port_idx]['name']}.")
+                fired.append(trig)
+                triggers.log.append({"t": round(t, 2), **trig.as_dict()})
+                stops[port_idx]["departed_h"] = round(t, 2)
+                port_idx = None
             arb = TriggerEngine.arbitrate(fired)
-            cycle = arb is not None and self._column(nxt) < lat.ncols - 1
+            cycle = arb is not None and not in_port and self._column(nxt) < lat.ncols - 1
 
             if arb and "sensor_drift" in arb["names"]:
                 est.inflate_noise()
@@ -472,7 +500,7 @@ class TadifVoyage(VoyageSimulator):
                     ens_opt = scen.cluster_ensemble(ens_full, cfg.opt_scenarios)
                 self._risk.set_conservatism(health.conservatism())
                 weights = weights_builder.build_weights(
-                    deadline_pressure(t, self._deadline,
+                    deadline_pressure(t, self._deadline_eff,
                                       self._remaining_km(plan, pos) / self.speed_kmh),
                     wx_sev, h["confidence"])
 
@@ -487,13 +515,19 @@ class TadifVoyage(VoyageSimulator):
                 if status != "HALTED":
                     halted_h = 0.0
                 # planned wait: sleep until it expires (other triggers still
-                # wake the cycle); fallback hold: re-check every hour
-                hold_left = {"planned_hold": d.get("hold_h", 0.0), "hold": cfg.dt_h}.get(
+                # wake the cycle); fallback hold: re-check every few hours,
+                # and exactly when the hold limit is reached
+                recheck = max(cfg.dt_h, min(cfg.hold_recheck_h, cfg.max_halt_h - halted_h - cfg.dt_h))
+                hold_left = {"planned_hold": d.get("hold_h", 0.0), "hold": recheck}.get(
                     d["action"], 0.0)
                 decided_cvar = d.get("cvar", plan_cvar)
                 if not paths or paths_len[-1] != len(plan) or d.get("plan_nodes") != plan:
                     paths.append([_round_pt(self._coord(n)) for n in plan])
                     paths_len.append(len(plan))
+            elif in_port:
+                status = "IN_PORT"
+                reason = (f"Alongside at {stops[port_idx]['name']}: "
+                          f"{port_left:.0f} h of {cfg.port_stay_h:.0f} h port stay left.")
             elif status != "HALTED":
                 status = "FORCED" if forced else ("DEVIATING" if detour else "CRUISING")
                 reason = "Following plan; no trigger fired." if not fired else "Final approach."
@@ -531,7 +565,11 @@ class TadifVoyage(VoyageSimulator):
             first = False
 
             # 7. move (truth) + fuel observation -----------------------------
-            if status == "HALTED":
+            if status == "IN_PORT":
+                model_t = float(self._sim.fuel.rate_tph(4.0, 0.0)) * cfg.dt_h   # hotel load
+                port_left = max(0.0, port_left - cfg.dt_h)
+                u_cmd = (0.0, 0.0)
+            elif status == "HALTED":
                 model_t = float(self._sim.fuel.rate_tph(4.0, ship_risk)) * cfg.dt_h
                 halted_h += cfg.dt_h
                 hold_left = max(0.0, hold_left - cfg.dt_h)
@@ -540,13 +578,20 @@ class TadifVoyage(VoyageSimulator):
                 # what the twin expects (ordered speed, its own forecast hazard)
                 # -> control input of the UKF; then what really happens
                 exp_hz = float(storm_hazard(est_p[None], np.array([t]), ens_full)[0][0, 0])
-                exp_pos, _, _ = self._advance(pos, plan, speed * KNOT_KMH *
+                exp_pos, _, _, _ = self._advance(pos, plan, speed * KNOT_KMH *
                                               (1.0 - SPEED_LOSS * exp_hz) * cfg.dt_h)
                 ex, ey = frame_ll.to_xy(*exp_pos)
                 u_cmd = ((float(ex) - xy[0]) / cfg.dt_h, (float(ey) - xy[1]) / cfg.dt_h)
                 v_eff = speed * KNOT_KMH * (1.0 - SPEED_LOSS * ship_risk)
-                pos, plan, km = self._advance(pos, plan, v_eff * cfg.dt_h)
+                pos, plan, km, reached = self._advance(pos, plan, v_eff * cfg.dt_h, stop_nodes)
                 sailed_km += km
+                if reached is not None:                 # port call: the ship ties up
+                    port_idx = stop_nodes[reached]
+                    stops[port_idx]["arrived_h"] = round(t + km / max(v_eff, 1e-9), 2)
+                    port_left = cfg.port_stay_h
+                    if port_left <= 0:
+                        stops[port_idx]["departed_h"] = stops[port_idx]["arrived_h"]
+                        port_idx = None
                 if not plan:                            # arrived part-way through the hour
                     arrival_h = t + km / max(v_eff, 1e-9)
                 model_t = float(self._sim.fuel.rate_tph(speed, ship_risk, wx)) * cfg.dt_h
@@ -577,12 +622,15 @@ class TadifVoyage(VoyageSimulator):
                 break
 
         halted_hours = sum(cfg.dt_h for f in frames if f["status"] == "HALTED")
+        port_hours = sum(cfg.dt_h for f in frames if f["status"] == "IN_PORT")
         summary = {
             "arrived": frames[-1]["status"] == "ARRIVED",
             "total_hours": round(t, 1), "sailed_km": round(sailed_km, 1),
             "baseline_km": round(baseline_km, 1),
             "extra_km": round(sailed_km - baseline_km, 1),
             "halted_hours": round(halted_hours, 1),
+            "port_hours": round(port_hours, 1),
+            "stops": stops,
             "corridor_km": round(self.corridor_km, 0),
             "graph": gen.graph.graph_summary(),
             "deadline_h": round(self._deadline, 1),
@@ -611,9 +659,10 @@ class TadifVoyage(VoyageSimulator):
 
     # ------------------------------------------------------------------
 
-    def _advance(self, pos: Coordinate, plan: List[int], km: float):
-        """Sail `km` along the plan. Returns (pos, remaining plan, km sailed);
-        the plan is empty once the last node is reached."""
+    def _advance(self, pos: Coordinate, plan: List[int], km: float, stop_at=()):
+        """Sail `km` along the plan. Returns (pos, remaining plan, km sailed,
+        port node reached or None); the plan is empty once the last node is
+        reached. Sailing ends early at a node in `stop_at` (a port call)."""
 
         plan, sailed = list(plan), 0.0
         while km > 1e-9 and plan:
@@ -621,13 +670,15 @@ class TadifVoyage(VoyageSimulator):
             dkm = _haversine_km(pos, target)
             if dkm <= km:
                 pos, sailed, km = target, sailed + dkm, km - dkm
-                plan = plan[1:]
+                node, plan = plan[0], plan[1:]
+                if node in stop_at and plan:
+                    return pos, plan, sailed, node
             else:
                 f = km / dkm
                 pos = (pos[0] + f * (target[0] - pos[0]), pos[1] + f * (target[1] - pos[1]))
                 sailed += km
                 km = 0.0
-        return pos, plan, sailed
+        return pos, plan, sailed, None
 
     def _remaining_km(self, plan: List[int], pos: Coordinate) -> float:
         pts = [pos] + [self._coord(n) for n in plan]

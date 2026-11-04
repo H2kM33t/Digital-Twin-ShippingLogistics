@@ -61,6 +61,13 @@ class Lattice:
                 reach[x] |= move[x, :, m] & reach[x + 1, ty]
         self.reach = reach
 
+        # allowed[x, y, m]: move m from (x, y) exists AND still reaches the goal
+        allowed = np.zeros_like(move)
+        for m, dy in enumerate(MOVES):
+            ty = np.clip(np.arange(nl) + dy, 0, nl - 1)
+            allowed[:, :, m] = move[:, :, m] & reach[1:, ty]
+        self.allowed = allowed
+
         # edge geometry: length and midpoint of every move
         self.edge_km = np.full((nc - 1, nl, 3), np.inf)
         self.edge_mid = np.zeros((nc - 1, nl, 3, 3))
@@ -107,20 +114,17 @@ class Lattice:
         P, M = desired.shape
         out = np.empty((P, M), dtype=int)
         out[:, 0] = lane0
-        rows = np.arange(P)
+        allowed = self.allowed
 
         for j in range(1, M):
-            x = col0 + j - 1
             prev = out[:, j - 1]
-            cand = prev[:, None] + MOVES[None]                       # (P, 3)
-            ok = self.move[x, prev] & self.reach[x + 1, np.minimum(np.maximum(cand, 0), self.nlanes - 1)]
-            cost = np.where(ok, np.abs(cand - desired[:, j:j + 1]), np.inf)
-            # no feasible move can only happen from an unreachable start:
-            # fall back to staying in lane (keeps the array well formed)
-            pick = np.argmin(cost, axis=1)
-            out[:, j] = np.where(np.isfinite(cost[rows, pick]), cand[rows, pick], prev)
+            cost = np.abs(prev[:, None] + MOVES - desired[:, j:j + 1])   # (P, 3)
+            cost[~allowed[col0 + j - 1, prev]] = 1e9
+            # if no move is allowed (only from an unreachable start) argmin
+            # keeps the first; the result is still a well-formed array
+            out[:, j] = prev + MOVES[cost.argmin(1)]
 
-        return out
+        return np.clip(out, 0, self.nlanes - 1)
 
     def best_path(self, col0: int, lane0: int, extra: np.ndarray | None = None,
                   lane_penalty_km: float = 2.0) -> np.ndarray:

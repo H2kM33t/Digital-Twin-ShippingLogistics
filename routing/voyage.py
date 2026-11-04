@@ -35,7 +35,7 @@ from .hazard import (
     Storm,
     required_corridor_width_km,
 )
-from .ocean import resample, sea_route
+from .ocean import resample, sea_route, unwrap_lons
 from .route_generator import RouteGenerator
 
 Coordinate = Tuple[float, float]
@@ -104,11 +104,13 @@ class VoyageSimulator:
         destination: Coordinate,
         storms: Optional[List[Storm]] = None,
         config: Optional[VoyageConfig] = None,
+        via: Optional[List[Coordinate]] = None,
     ) -> None:
 
         self.cfg = config or VoyageConfig()
         self.origin = origin
         self.destination = destination
+        self.via = list(via or [])          # intermediate port calls, in order
         self.storms = list(storms or [])
 
         self.speed_kmh = self.cfg.speed_kts * KNOT_KMH
@@ -123,7 +125,11 @@ class VoyageSimulator:
 
         c = self.cfg
 
-        if c.ocean:
+        via_columns: tuple = ()
+        if c.ocean and self.via:
+            centerline, via_columns = self._multi_leg_centerline()
+            columns = len(centerline)
+        elif c.ocean:
             sea = sea_route(self.origin, self.destination)
             centerline, self.route_km = sea["path"], sea["length_km"]
             self.passages = sea["passages"]
@@ -135,6 +141,7 @@ class VoyageSimulator:
             self.passages = []
             columns = c.longitudinal_resolution
         self.centerline = centerline
+        self.via_columns = via_columns
 
         horizon_h = 2.0 * self.route_km / self.speed_kmh
         # long voyages need more simulated hours than the default cap
@@ -154,6 +161,7 @@ class VoyageSimulator:
             corridor_width_km=self.corridor_km,
             centerline_path=centerline if c.ocean else None,
             land_mask=c.ocean,
+            via_columns=via_columns,
         ))
 
         gen = RouteGenerator(builder)
@@ -161,6 +169,35 @@ class VoyageSimulator:
         gen.set_storms(self.storms)
 
         return gen
+
+    def _multi_leg_centerline(self):
+        """
+        Sea route origin -> via... -> destination, one leg at a time. Each leg
+        gets columns in proportion to its length, so every port call falls
+        exactly on a column; those columns are returned so the graph forces
+        the route through the port (centre lane only).
+        """
+
+        c = self.cfg
+        stops = [self.origin] + self.via + [self.destination]
+        legs = [sea_route(a, b) for a, b in zip(stops[:-1], stops[1:])]
+        self.leg_km = [leg["length_km"] for leg in legs]
+        self.route_km = sum(self.leg_km)
+        self.passages = []
+        for leg in legs:
+            self.passages += [p for p in leg["passages"] if p not in self.passages]
+
+        target = int(round(self.route_km / c.column_spacing_km)) + 1
+        target = min(max(target, c.longitudinal_resolution, 3 * len(legs) + 1),
+                     max(c.max_columns, 3 * len(legs) + 1))
+        segs = [max(2, int(round((target - 1) * km / self.route_km))) for km in self.leg_km]
+
+        centerline, via_columns = [], []
+        for leg, n in zip(legs, segs):
+            pts = resample(leg["path"], n + 1)
+            centerline += pts if not centerline else pts[1:]
+            via_columns.append(len(centerline) - 1)
+        return unwrap_lons(centerline), tuple(via_columns[:-1])
 
     # ------------------------------------------------------------------
 

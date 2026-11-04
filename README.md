@@ -24,8 +24,15 @@ table below says how far each part goes.
 
 - **Route**: type a start and end, as a port name ("Shanghai", "Jebel Ali",
   "Rotterdam, Netherlands"; suggestions come from about 3,900 ports) or
-  "lat, lon", then **Plan sea route** or Enter. ⇄ swaps them. The panel shows
-  the sea distance and the straits or canals passed. Each new route gets a
+  "lat, lon", then **Plan sea route** or Enter. **＋ Add stop** adds up to 8
+  intermediate port calls, in order (↑ moves a stop up, ✕ removes it);
+  **⇅ Reverse** reverses the whole voyage. The panel shows the sea distance
+  of every leg and the straits or canals passed.
+- **Stops are real port calls**: the corridor narrows to the port itself at
+  each stop, so every route the twin considers passes through it, and the
+  ship ties up for the **port stay** (slider, default 6 h, status IN_PORT).
+  Leaving port triggers a fresh plan for the next leg, and the deadline
+  includes the port stays. Each new route gets a
   demo storm timed to cross the lane about when the ship gets there
   (**Reset demo** brings it back).
 
