@@ -140,26 +140,30 @@ class VoyageSimulator:
     def simulate(self, col0: int, lanes: np.ndarray, speed_kts: np.ndarray,
                  pos_p, t_now: float, ens: ScenarioSet, theta: float = 1.0,
                  wx: float = 1.0, deadline_h: float = np.inf, hold_h=0.0) -> dict:
-        """pos_p: ship position (ECEF km). hold_h: hours each candidate waits
-        at the ship's position before sailing."""
+        """pos_p: ship position (ECEF km). speed_kts: one ordered speed per
+        candidate (P,) or a speed profile, one per leg (P, M). hold_h: hours
+        each candidate waits at the ship's position before sailing."""
 
         lanes = np.atleast_2d(lanes)
-        P = lanes.shape[0]
-        speed_kts = np.broadcast_to(np.asarray(speed_kts, float), (P,))
+        P, M = lanes.shape
+        sp = np.asarray(speed_kts, float)
+        if sp.ndim < 2:
+            sp = np.broadcast_to(sp.reshape(-1, 1) if sp.ndim == 1 else sp, (P, 1))
+        speed_kts = np.broadcast_to(sp, (P, M))                            # per leg
         hold = np.broadcast_to(np.asarray(hold_h, float), (P,))
         pos_p = np.asarray(pos_p, float)
         pts = np.concatenate([np.broadcast_to(pos_p, (P, 1, 3)),
                               self.lat.path_xyz(col0, lanes)], axis=1)  # (P, M+1, 3)
         a, b = pts[:, :-1], pts[:, 1:]
         d = np.linalg.norm(b - a, axis=-1)                                # (P, M)
-        v = (speed_kts * KNOT_KMH)[:, None]
+        v = speed_kts * KNOT_KMH                                          # (P, M)
 
         # waiting phase: hazard at the holding position over [t, t + hold]
         th = t_now + hold[:, None] * np.linspace(0.0, 1.0, 5)[None]      # (P, 5)
         h_risk, h_core = storm_hazard(np.broadcast_to(pos_p, th.shape + (3,)), th, ens)
         h_core = h_core & (hold > 0)[:, None, None]    # sailing on is not "holding in a core"
 
-        t_end = t_now + hold[:, None] + np.cumsum(d, axis=1) / v
+        t_end = t_now + hold[:, None] + np.cumsum(d / v, axis=1)     # legs at their own speed
         t_start = t_end - d / v
 
         # only segments a storm can reach (relevant_columns) are evaluated
@@ -177,7 +181,7 @@ class VoyageSimulator:
 
         seg_h = d[:, None, :] / (v[:, None, :] * (1.0 - SPEED_LOSS * risk))
         eta = t_now + hold[:, None] + seg_h.sum(-1)                       # (P, S)
-        rate = self.fuel.rate_tph(speed_kts[:, None, None], risk, wx, theta)
+        rate = self.fuel.rate_tph(speed_kts[:, None, :], risk, wx, theta)
         fuel = (rate * seg_h).sum(-1)                                     # (P, S)
         fuel = fuel + self.fuel.rate_tph(HOLD_SPEED_KTS, h_risk.mean(-1), wx, theta) * hold[:, None]
         peak = np.maximum(risk.max(-1) if risk.shape[-1] else np.zeros((P, ens.n)),
@@ -206,7 +210,7 @@ class VoyageSimulator:
             "nominal_core": core[:, 0, :].any(-1) if ens.n else np.zeros(P, bool),
             "peak_by_scenario": peak,
             "core_by_scenario": core.any(-1),
-            "speed_kts": speed_kts.copy(),
+            "speed_kts": speed_kts[:, 0].copy(),
             "hold_h": hold.copy(),
         }
 

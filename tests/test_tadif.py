@@ -239,3 +239,48 @@ def test_read_only_run_does_not_write_the_knowledge_base(tmp_path):
     path = str(tmp_path / "kb.json")
     TadifVoyage(ORIGIN, DEST, [], TadifConfig(kb_path=path, kb_write=False)).run()
     assert KnowledgeBase(path).data["voyages"] == []
+
+
+# ======================================================================
+# speed profile and risk_exhausted
+# ======================================================================
+
+def test_simulator_sails_each_leg_at_its_own_speed():
+    v = TadifVoyage(ORIGIN, DEST, [])
+    v.run()
+    lat, sim = v._lat, v._sim
+    lanes = lat.best_path(0, lat.start_lane)[None]
+    M = lanes.shape[1]
+    ens = v._scen.sample_forecast([], 0.0)
+    pos = lat.p[0, lat.start_lane]
+    uniform = sim.simulate(0, lanes, [16.0], pos, 0.0, ens)
+    same = sim.simulate(0, lanes, np.full((1, M), 16.0), pos, 0.0, ens)
+    assert same["time_h"][0] == pytest.approx(uniform["time_h"][0])
+    half = np.r_[np.full(M // 2, 12.0), np.full(M - M // 2, 16.0)][None]
+    mixed = sim.simulate(0, lanes, half, pos, 0.0, ens)
+    slow = sim.simulate(0, lanes, [12.0], pos, 0.0, ens)
+    assert uniform["time_h"][0] < mixed["time_h"][0] < slow["time_h"][0]
+    assert slow["fuel_t"][0] < mixed["fuel_t"][0] < uniform["fuel_t"][0]
+
+
+def test_twin_varies_speed_along_the_route(big_moving):
+    profiles = [d["selected_route"]["speed_profile_knots"]
+                for d in big_moving["decisions"] if "selected_route" in d]
+    assert any(len(set(p)) > 1 for p in profiles)
+    sailing = {f["speed_kts"] for f in big_moving["frames"]
+               if f["status"] in ("CRUISING", "DEVIATING", "REJOINING")}
+    assert len(sailing) > 1                     # the ship really changes speed
+
+
+def test_risk_exhausted_retries_with_more_scenarios_before_holding():
+    res = TadifVoyage(ORIGIN, DEST, [BLOCKER], TadifConfig(max_halt_h=10)).run()
+    first = [x for x in res["trigger_log"] if x["name"] == "risk_exhausted"]
+    assert first and first[0]["t"] == 5        # at detection, nothing passes
+    d = next(d for d in res["decisions"] if d.get("risk_exhausted"))
+    assert d["retry"] and d["n_scenarios"] == TadifConfig().n_scenarios_max
+    assert d["risk_exhausted"]["first_n_scenarios"] < d["n_scenarios"]
+    assert d["weights"].get("relaxed_for_safety")
+    assert d["action"] in ("hold", "forced", "least_risk", "sail", "planned_hold")
+    # at most one retry per forecast: never in consecutive hours
+    ts = [x["t"] for x in first]
+    assert all(b - a > 1 for a, b in zip(ts[:-1], ts[1:]))

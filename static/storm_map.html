@@ -425,13 +425,15 @@ function chips(el, items){ el.innerHTML=''; (items||[]).forEach(([txt,cls])=>{ c
 function renderDecision(f){
   const d = f.decision_id==null ? null : S.data.decisions[f.decision_id];
   if(!d){ $('decHead').textContent='—'; $('decText').textContent=''; kv($('decObj'),[]); $('weights').innerHTML=''; $('sens').textContent=''; return null; }
-  $('decHead').textContent=`Cycle ${d.cycle_index} at t=${d.t} h · trigger: ${d.trigger.names.join(', ')} (${d.trigger.severity}, re-enter at ${d.trigger.reentry}) · action: ${d.action.replace('_',' ')}`;
+  const rex = d.risk_exhausted ? ` · risk exhausted on ${d.risk_exhausted.first_n_scenarios} scenarios → retried on ${d.risk_exhausted.retry_n_scenarios} (${d.risk_exhausted.resolved?'found a safe route':'still none'})` : '';
+  $('decHead').textContent=`Cycle ${d.cycle_index} at t=${d.t} h · trigger: ${d.trigger.names.join(', ')} (${d.trigger.severity}, re-enter at ${d.trigger.reentry}) · action: ${d.action.replace('_',' ')}${rex}`;
   $('decText').textContent=d.explanation.text;
   const o=d.selected_route?d.selected_route.objective_vector:null, sr=d.selected_route;
   const rows=[['Search',`${d.n_evaluations.toLocaleString()} evaluations · ${d.n_candidates} candidates · ${d.n_accepted} pass risk · ${d.n_rejected} rejected`],
               ['Scenarios',`${d.n_scenarios} (NSGA-III on ${d.n_opt_scenarios} clustered)`],
               ['Risk limits',`CVaR${Math.round(d.risk_thresholds.alpha*100)} ≤ ${d.risk_thresholds.cvar_max}, P(core) ≤ ${d.risk_thresholds.p_fail_max}`]];
-  if(o) rows.push(['Selected',`${o.distance_km} km at ${sr.speed_profile_knots[0]} kn${sr.hold_h?` after ${sr.hold_h} h wait`:''}`],
+  if(o) rows.push(['Selected',`${o.distance_km} km${sr.hold_h?` after ${sr.hold_h} h wait`:''}`],
+                  ['Speed profile ahead', profileText(sr.speed_profile_knots)],
                   ['Fuel / CO₂',`${o.fuel_t} t / ${o.co2_t} t`],['Time / ETA σ',`${o.time_h} h / ±${o.eta_std_h} h`],
                   ['CVaR (95% CI)',`${o.robustness_cvar} [${sr.cvar_ci95.join(', ')}]`],['P(core) / on-time',`${sr.p_fail} / ${(o.reliability*100).toFixed(0)}%`]);
   if(d.explanation.runner_up_gap!=null) rows.push(['Score / runner-up gap',`${d.explanation.score} / ${d.explanation.runner_up_gap}`],
@@ -457,7 +459,7 @@ function renderCandidates(f, d){
       td0.append(dot, document.createTextNode(label));
       if(!c.accepted){ const x=document.createElement('span'); x.className='pill'; x.style.background='#b91c1c'; x.textContent='REJECTED'; td0.append(x); }
       tr.append(td0);
-      [c.km, c.speed_kts, c.hold_h?c.hold_h+'h':'–', c.fuel_t, c.time_h, c.cvar].forEach((v,j)=>{ const td=document.createElement('td'); td.textContent=v;
+      [c.km, speedRange(c.speeds||[c.speed_kts]), c.hold_h?c.hold_h+'h':'–', c.fuel_t, c.time_h, c.cvar].forEach((v,j)=>{ const td=document.createElement('td'); td.textContent=v;
         if(j===5 && !c.accepted) td.style.color='#f87171'; tr.append(td); });
       body.append(tr); });
   } else {
@@ -474,6 +476,11 @@ function renderCandidates(f, d){
 $('showCand').onchange=()=>{ if(S.data) drawFrame(S.frame,false); };
 
 // ---------- frame drawing ----------
+// speed profile: one speed per route segment still ahead
+function profileText(p){ if(!p||!p.length) return '—';
+  return new Set(p).size===1 ? `${p[0]} kn all the way` : p.map(v=>v.toFixed(1)).join(' → ')+' kn'; }
+function speedRange(p){ const lo=Math.min(...p), hi=Math.max(...p); return lo===hi ? lo : `${lo}–${hi}`; }
+
 function framePath(f){
   if(f.path_id!=null && S.data.paths) return [f.ship].concat(S.data.paths[f.path_id].slice(f.path_from));
   return f.path || null;

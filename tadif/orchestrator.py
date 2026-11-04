@@ -63,6 +63,7 @@ class TadifConfig(VoyageConfig):
     nsga_generations: int = 25
     nsga_stall: int = 5             # stop when the first front is unchanged this long
     speed_levels: tuple = (0.75, 0.85, 0.95, 1.0)   # x service speed
+    speed_segments: int = 6         # speed profile: one speed per ~1/6 of the route
     deadline_slack: float = 0.15    # deadline = storm-free time at service speed * (1 + slack)
     deadline_h: Optional[float] = None
     hold_levels_h: tuple = (0, 2, 4, 8, 12, 24)    # wait-then-sail options
@@ -121,17 +122,37 @@ class TadifVoyage(VoyageSimulator):
     # one decision cycle
     # ------------------------------------------------------------------
 
+    def _seg(self, col):
+        """Absolute speed segment of a lattice column."""
+        return np.asarray(col) // self._seg_len
+
+    def _profile_speeds(self, prof, col0: int, M: int) -> np.ndarray:
+        """(M,) ordered speed (kn) on the leg into each column col0..col0+M-1."""
+        return self._levels[np.asarray(prof)[self._seg(col0 + np.arange(M))]]
+
     def _cycle(self, k: int, t: float, est_p, est_ll, nxt: int, plan: List[int],
-               speed: float, ens_full, ens_opt, theta: float, wx: float,
-               weights: dict, conf: float, halted_h: float, forced: bool, arb: dict) -> dict:
+               prof, ens_full, ens_opt, theta: float, wx: float,
+               weights: dict, conf: float, halted_h: float, forced: bool, arb: dict,
+               retry: bool = False) -> dict:
+        """
+        One decision cycle. `prof` is the current speed profile: one speed
+        level per absolute route segment (see run()). With retry=True this is
+        the risk_exhausted second attempt (spec Alg. 14.9): more scenarios,
+        safety-weighted ranking, and a search in which exceeding the risk
+        limits counts as constraint violation.
+        """
 
         cfg, lat, sim = self.cfg, self._lat, self._sim
         col0, lane0 = self._column(nxt), nxt % lat.nlanes
         M = lat.ncols - col0
         L = len(self._levels)
+        s0 = int(self._seg(col0))
+        K = self._n_seg - s0                        # speed genes still ahead
+        seg_of = self._seg(col0 + np.arange(M)) - s0  # (M,) gene index per column
         holds = np.array(cfg.hold_levels_h, float)
         H = len(holds)
         may_hold = not forced and halted_h < cfg.max_halt_h
+        inc_prof = np.asarray(prof)[s0:]
 
         # seeds: incumbent, three DP routes, two corridor sweeps
         routes = {}
@@ -145,13 +166,16 @@ class TadifVoyage(VoyageSimulator):
             routes[name] = lat.repair(np.full((1, M), float(lane)), col0, lane0)[0]
         direct = routes.get("direct")
 
-        sg = lambda i: i / max(L - 1, 1)
+        sg = lambda i: np.full(K, i / max(L - 1, 1))
         hg = lambda j: j / max(H - 1, 1)
         seeds = [np.r_[lanes.astype(float), sg(i), 0.0]
                  for lanes in routes.values() for i in range(L)]
         # rows of the plan and the shortest route (sailing now), for the fast path
         core_rows = [r * L + i for r, name in enumerate(routes)
                      if name in ("incumbent", "direct") for i in range(L)]
+        if "incumbent" in routes:                   # the current profile, exactly
+            seeds.append(np.r_[routes["incumbent"].astype(float), inc_prof / max(L - 1, 1), 0.0])
+            core_rows.append(len(seeds) - 1)
         if may_hold:
             for name in ("incumbent", "direct", "storm"):
                 if name in routes:
@@ -161,19 +185,26 @@ class TadifVoyage(VoyageSimulator):
 
         def decode(G):
             lanes = lat.repair(G[:, :M], col0, lane0)
-            idx = np.rint(np.clip(G[:, M], 0, 1) * (L - 1)).astype(int)
-            hidx = np.rint(np.clip(G[:, M + 1], 0, 1) * (H - 1)).astype(int)
+            sidx = np.rint(np.clip(G[:, M:M + K], 0, 1) * (L - 1)).astype(int)
+            hidx = np.rint(np.clip(G[:, M + K], 0, 1) * (H - 1)).astype(int)
             if not may_hold:
                 hidx[:] = 0
-            return lanes, idx, hidx
+            return lanes, sidx, hidx
+
+        thr = self._risk.thr
 
         def evaluate(G):
-            lanes, idx, hidx = decode(G)
-            r = sim.simulate(col0, lanes, self._levels[idx], est_p, t, ens_opt,
+            lanes, sidx, hidx = decode(G)
+            r = sim.simulate(col0, lanes, self._levels[sidx[:, seg_of]], est_p, t, ens_opt,
                              theta, wx, self._deadline_eff, holds[hidx])
             F = np.column_stack([r["fuel_t"], r["lateness_h"], r["safety"], r["robustness"]])
-            return F, r["nominal_core"].astype(float), np.column_stack([lanes, idx, hidx])
+            cv = r["nominal_core"].astype(float)
+            if retry:   # search towards acceptance: risk-limit excess is infeasibility
+                cv = cv + np.maximum(r["robustness"] - thr.cvar_max, 0.0) \
+                        + np.maximum(r["p_core"] - thr.p_fail_max, 0.0)
+            return F, cv, np.column_stack([lanes, sidx, hidx])
 
+        levels = (L,) * K + (H,)
         opt = NSGA3(n_obj=4, partitions=5, n_gen=cfg.nsga_generations, seed=cfg.seed + k,
                     stall=cfg.nsga_stall)
         # Fast path (spec Alg. 14.3 "no-op"): if neither the current plan nor
@@ -183,42 +214,74 @@ class TadifVoyage(VoyageSimulator):
         # evolutionary search.
         F_seed, _, _ = evaluate(seeds)
         opt.n_evals += len(seeds)
-        if ens_opt.n_storms and F_seed[core_rows, 2:].max() > 0:
+        if retry or (ens_opt.n_storms and F_seed[core_rows, 2:].max() > 0):
             # Warm start: the previous search's final population, cut to the
-            # columns still ahead, starts this one; it then needs fewer
-            # generations to settle.
+            # columns and speed segments still ahead, starts this one; it then
+            # needs fewer generations to settle.
             start = seeds
             warm = getattr(self, "_warm", None)
-            if warm is not None and warm[0] <= col0 and warm[1].shape[1] > col0 - warm[0]:
-                Gw = warm[1][:, col0 - warm[0]:].copy()
-                Gw[:, 0] = lane0
-                start = np.vstack([Gw, seeds])
-                opt.n_gen = max(8, cfg.nsga_generations // 2)
-            G, _, _ = opt.run(evaluate, start, lat.nlanes, (L, H))
-            self._warm = (col0, G)
+            if warm is not None:
+                wcol, ws, wM, wK, wG = warm
+                sh, ssh = col0 - wcol, s0 - ws
+                if 0 <= sh < wM and 0 <= ssh < wK and wM - sh == M and wK - ssh == K:
+                    Gw = np.hstack([wG[:, sh:wM], wG[:, wM + ssh:wM + wK], wG[:, -1:]])
+                    Gw[:, 0] = lane0
+                    start = np.vstack([Gw, seeds])
+                    if not retry:
+                        opt.n_gen = max(8, cfg.nsga_generations // 2)
+            if retry:
+                opt.n_gen = 2 * cfg.nsga_generations
+            G, _, _ = opt.run(evaluate, start, lat.nlanes, levels)
+            self._warm = (col0, s0, M, K, G)
         else:
             G = seeds[:0]
         fast_path = len(G) == 0
 
         # candidate set = final population + every seed, on the FULL ensemble
-        lanes_all, idx_all, hidx_all = decode(np.vstack([G, seeds]))
-        keys = np.column_stack([lanes_all, idx_all, hidx_all])
+        lanes_all, sidx_all, hidx_all = decode(np.vstack([G, seeds]))
+        keys = np.column_stack([lanes_all, sidx_all, hidx_all])
         _, uniq = np.unique(keys, axis=0, return_index=True)
         uniq = np.sort(uniq)
-        lanes_c, idx_c, hold_c = lanes_all[uniq], idx_all[uniq], holds[hidx_all[uniq]]
-        speeds_c = self._levels[idx_c]
+        lanes_c, sidx_c, hold_c = lanes_all[uniq], sidx_all[uniq], holds[hidx_all[uniq]]
+        speeds_c = self._levels[sidx_c[:, seg_of]]              # (C, M) per-leg speeds
         res = sim.simulate(col0, lanes_c, speeds_c, est_p, t, ens_full, theta, wx,
                            self._deadline_eff, hold_c)
         rk = self._risk.assess(res, ens_full.weights)
         n_eval = opt.n_evals + len(lanes_c)
 
-        def same(i, lanes, spd=None):
+        def same(i, lanes, sprof=None):
             return (np.array_equal(lanes_c[i], lanes) and hold_c[i] == 0
-                    and (spd is None or abs(speeds_c[i] - spd) < 1e-6))
+                    and (sprof is None or np.array_equal(sidx_c[i], sprof)))
 
         inc = next((i for i in range(len(lanes_c))
-                    if "incumbent" in routes and same(i, routes["incumbent"], speed)), None)
+                    if "incumbent" in routes and same(i, routes["incumbent"], inc_prof)), None)
         accepted = np.nonzero(rk["accepted"])[0]
+
+        # ---------------- risk_exhausted (spec Alg. 14.9, line 21) -----------
+        # once per forecast: after a retry the ensemble is already at N_max,
+        # and re-sampling the same forecast again would add nothing
+        if (not len(accepted) and not retry and ens_full.n_storms
+                and ens_full.n < cfg.n_scenarios_max):
+            n_max = cfg.n_scenarios_max
+            big = self._scen.sample_forecast(self.storms, t, n_max)
+            big_opt = self._scen.cluster_ensemble(big, 2 * cfg.opt_scenarios)
+            w = dict(weights["weights"])
+            for c in ("safety", "robustness"):          # relax non-safety pressure
+                w[c] *= 2.0
+            tot = sum(w.values())
+            relaxed = {**weights, "weights": {c: round(v / tot, 4) for c, v in w.items()},
+                       "relaxed_for_safety": True}
+            d = self._cycle(k, t, est_p, est_ll, nxt, plan, prof, big, big_opt, theta, wx,
+                            relaxed, conf, halted_h, forced, arb, retry=True)
+            d["risk_exhausted"] = {"first_n_scenarios": int(ens_full.n),
+                                   "first_n_rejected": len(rk["rejections"]),
+                                   "first_n_evaluations": int(n_eval),
+                                   "retry_n_scenarios": int(big.n),
+                                   "resolved": d["n_accepted"] > 0}
+            d["n_evaluations"] += int(n_eval)
+            d["_ens"] = (big, big_opt)
+            return d
+
         X_all = criteria_matrix(res, rk, np.arange(len(lanes_c)))
 
         action, ranking, chosen = "sail", None, None
@@ -250,6 +313,9 @@ class TadifVoyage(VoyageSimulator):
         if action == "sail" and hold_c[chosen] > 0:
             action = "planned_hold"
 
+        def seg_speeds(i):
+            return [round(float(v), 1) for v in self._levels[sidx_c[i]]]
+
         # ---------------- decision record (API schema, Section 15.4) ----------
         def cand_view(i, kind):
             coords = [est_ll] + lat.coords(col0, lanes_c[i])
@@ -257,7 +323,8 @@ class TadifVoyage(VoyageSimulator):
                     # fast-path alternatives differ only in speed: no extra geometry
                     "path": (None if fast_path else
                              [[round(a, 3), round(b, 3)] for a, b in coords]),
-                    "speed_kts": round(float(speeds_c[i]), 1),
+                    "speed_kts": round(float(speeds_c[i, 0]), 1),
+                    "speeds": seg_speeds(i),
                     "hold_h": float(hold_c[i]),
                     "fuel_t": round(float(res["fuel_t"][i]), 1),
                     "time_h": round(float(res["time_h"][i]), 1),
@@ -282,13 +349,14 @@ class TadifVoyage(VoyageSimulator):
             show(int(accepted[np.argmin(res["time_h"][accepted])]), "fastest")
         show(int(np.argmin(rk["cvar"])), "min_risk")
         if direct is not None:
-            show(next((i for i in range(len(lanes_c)) if same(i, direct, speed)), None), "direct")
+            show(next((i for i in range(len(lanes_c))
+                       if same(i, direct, np.full(K, inc_prof[0] if K else 0))), None), "direct")
         for rej in sorted(rk["rejections"], key=lambda r: -r["margin"])[:2]:
             show(rej["index"], "rejected")
 
         decision = {
             "cycle_index": k, "t": round(t, 2), "action": action,
-            "trigger": arb, "weights": weights,
+            "trigger": arb, "weights": weights, "retry": retry,
             "risk_thresholds": rk["thresholds"],
             "n_candidates": int(len(lanes_c)), "n_accepted": int(len(accepted)),
             "n_pareto_ranked": int(len(ranked_idx)), "n_evaluations": int(n_eval),
@@ -304,17 +372,20 @@ class TadifVoyage(VoyageSimulator):
         if chosen is not None:
             i = chosen
             coords = lat.coords(col0, lanes_c[i])
-            seg = [0.0] + [_haversine_km(a, b) for a, b in zip([est_ll] + coords[:-1], coords)]
-            eta, v = t + hold_c[i], speeds_c[i] * KNOT_KMH
+            seg = [_haversine_km(a, b) for a, b in zip([est_ll] + coords[:-1], coords)]
+            eta = t + hold_c[i]
             waypoints = []
-            for (la, lo), d in zip(coords, seg[1:]):
-                eta += d / v
-                waypoints.append({"lat": round(la, 4), "lon": round(lo, 4), "eta_h": round(eta, 2)})
+            for (la, lo), d, v in zip(coords, seg, speeds_c[i]):
+                eta += d / (v * KNOT_KMH)
+                waypoints.append({"lat": round(la, 4), "lon": round(lo, 4), "eta_h": round(eta, 2),
+                                  "speed_kts": round(float(v), 1)})
             lo_ci, hi_ci = bootstrap_ci(res["peak_by_scenario"][i], ens_full.weights,
                                         self._risk.thr.alpha, seed=k)
+            new_prof = np.array(prof).copy()
+            new_prof[s0:] = sidx_c[i]
             decision["selected_route"] = {
                 "route_id": f"c{k}-{i}", "waypoints": waypoints[::3] + waypoints[-1:],
-                "speed_profile_knots": [round(float(speeds_c[i]), 1)],
+                "speed_profile_knots": seg_speeds(i),
                 "hold_h": float(hold_c[i]),
                 "objective_vector": {
                     "fuel_t": round(float(res["fuel_t"][i]), 2),
@@ -330,7 +401,8 @@ class TadifVoyage(VoyageSimulator):
                 "p_fail": round(float(rk["p_fail"][i]), 3),
             }
             decision["plan_nodes"] = lat.nodes_of(col0, lanes_c[i])
-            decision["speed_kts"] = float(speeds_c[i])
+            decision["profile"] = [int(x) for x in new_prof]
+            decision["speed_kts"] = float(speeds_c[i, 0])
             decision["hold_h"] = float(hold_c[i])
             decision["cvar"] = float(rk["cvar"][i])
             decision["detour"] = direct is None or not np.array_equal(lanes_c[i], direct)
@@ -379,6 +451,11 @@ class TadifVoyage(VoyageSimulator):
         self._lat = lat = Lattice(gen)
         self._warm = None
         self._levels = np.array(cfg.speed_levels) * cfg.speed_kts
+        # speed profile: the route is cut into fixed segments of columns, each
+        # with its own speed level. Fixed (absolute) segments mean the current
+        # plan's profile can always be re-evaluated exactly in later cycles.
+        self._seg_len = max(4, math.ceil(lat.ncols / max(cfg.speed_segments, 1)))
+        self._n_seg = math.ceil(lat.ncols / self._seg_len)
         alpha = PROFILE_ALPHA.get(cfg.profile, 0.9)
         self._sim = BatchSimulator(lat, FuelModel(), alpha, horizon_h=self.max_hours)
         self._risk = RiskAssessor(RiskThresholds(alpha=alpha, cvar_max=cfg.halt_risk))
@@ -396,6 +473,7 @@ class TadifVoyage(VoyageSimulator):
         scen = ScenarioGenerator(frame_ll, n=cfg.n_scenarios, seed=cfg.seed + 7)
         health = TwinHealthMonitor()
         triggers = TriggerEngine()
+        self._scen = scen
         learner = OnlineLearner(KnowledgeBase(cfg.kb_path))
         env = TwinObserver(self.origin, self.destination)
         rng = np.random.default_rng(cfg.seed + 3)
@@ -409,7 +487,8 @@ class TadifVoyage(VoyageSimulator):
                                    seed=cfg.seed + 11)
 
         plan: List[int] = [gen.start_node]
-        speed = cfg.speed_kts
+        prof = np.full(self._n_seg, len(self._levels) - 1)     # service speed everywhere
+        speed = float(self._levels[-1])
         t, sailed_km, halted_h = 0.0, 0.0, 0.0
         forced = detour = False
         ens_full = ens_opt = None
@@ -428,6 +507,7 @@ class TadifVoyage(VoyageSimulator):
 
         for _ in range(int(self.max_hours / cfg.dt_h)):
             nxt = plan[0]
+            speed = float(self._levels[prof[self._seg(self._column(nxt))]])
 
             # 1. state estimation ------------------------------------------
             snap = est.step(xy, t, 0.0 if first else cfg.dt_h, u_cmd)
@@ -452,7 +532,8 @@ class TadifVoyage(VoyageSimulator):
                 ens_opt = scen.cluster_ensemble(ens_full, cfg.opt_scenarios)
             waiting = status == "HALTED"
             if self._sim.relevant_columns(ens_full)[self._column(nxt):].any() or waiting:
-                plan_eval = self._sim.simulate(self._column(nxt), lat.lanes_of(plan)[None], [speed],
+                plan_eval = self._sim.simulate(self._column(nxt), lat.lanes_of(plan)[None],
+                                               self._profile_speeds(prof, self._column(nxt), len(plan))[None],
                                                est_p, t, ens_full, learner.theta, wx,
                                                self._deadline_eff, hold_left if waiting else 0.0)
                 plan_cvar = float(weighted_cvar(plan_eval["peak_by_scenario"], ens_full.weights,
@@ -469,8 +550,9 @@ class TadifVoyage(VoyageSimulator):
             # 5. triggers ----------------------------------------------------
             fired = triggers.detect(t, first=first, storms_known=known, plan_cvar=plan_cvar,
                                     decided_cvar=decided_cvar,
-                                    # a forced transit crosses the core by decision
-                                    plan_core=plan_core and not forced,
+                                    # a forced transit crosses the core by decision, and a
+                                    # ship holding for it already knows (re-check cadence)
+                                    plan_core=plan_core and not forced and not waiting,
                                     sensor_conf=h["subscores"]["sensor"], fuel_err=fuel_err,
                                     halted=waiting and hold_left <= 0,
                                     health_trigger=h["trigger"])
@@ -504,14 +586,25 @@ class TadifVoyage(VoyageSimulator):
                                       self._remaining_km(plan, pos) / self.speed_kmh),
                     wx_sev, h["confidence"])
 
-                d = self._cycle(k, t, est_p, est_ll, nxt, plan, speed, ens_full, ens_opt,
+                d = self._cycle(k, t, est_p, est_ll, nxt, plan, prof, ens_full, ens_opt,
                                 learner.theta, wx, weights, h["confidence"], halted_h, forced, arb)
+                if "_ens" in d:                 # risk_exhausted: keep the larger ensemble
+                    ens_full, ens_opt = d.pop("_ens")
+                if d.get("risk_exhausted"):
+                    re = d["risk_exhausted"]
+                    trig = Trigger("risk_exhausted", "high", "scenario",
+                                   f"No route passed the risk filter on {re['first_n_scenarios']} "
+                                   f"scenarios; retried on {re['retry_n_scenarios']}"
+                                   + (" and found one." if re["resolved"] else ", still none."))
+                    fired.append(trig)
+                    triggers.log.append({"t": round(t, 2), **trig.as_dict()})
                 k += 1
                 decisions.append(d)
                 last_dec = len(decisions) - 1
                 dec_conf = float(d["decision_confidence"])
-                status, reason, plan, speed, forced, detour = self._apply(
-                    d, plan, speed, forced, detour, halted_h, first)
+                status, reason, plan, prof, forced, detour = self._apply(
+                    d, plan, prof, forced, detour, halted_h, first)
+                speed = float(self._levels[prof[self._seg(self._column(plan[0]))]])
                 if status != "HALTED":
                     halted_h = 0.0
                 # planned wait: sleep until it expires (other triggers still
@@ -578,23 +671,23 @@ class TadifVoyage(VoyageSimulator):
                 # what the twin expects (ordered speed, its own forecast hazard)
                 # -> control input of the UKF; then what really happens
                 exp_hz = float(storm_hazard(est_p[None], np.array([t]), ens_full)[0][0, 0])
-                exp_pos, _, _, _ = self._advance(pos, plan, speed * KNOT_KMH *
-                                              (1.0 - SPEED_LOSS * exp_hz) * cfg.dt_h)
+                exp_pos = self._sail(pos, plan, cfg.dt_h, prof, exp_hz)[0]
                 ex, ey = frame_ll.to_xy(*exp_pos)
                 u_cmd = ((float(ex) - xy[0]) / cfg.dt_h, (float(ey) - xy[1]) / cfg.dt_h)
-                v_eff = speed * KNOT_KMH * (1.0 - SPEED_LOSS * ship_risk)
-                pos, plan, km, reached = self._advance(pos, plan, v_eff * cfg.dt_h, stop_nodes)
+                pos, plan, km, reached, used_h, pieces = self._sail(
+                    pos, plan, cfg.dt_h, prof, ship_risk, stop_nodes)
                 sailed_km += km
                 if reached is not None:                 # port call: the ship ties up
                     port_idx = stop_nodes[reached]
-                    stops[port_idx]["arrived_h"] = round(t + km / max(v_eff, 1e-9), 2)
+                    stops[port_idx]["arrived_h"] = round(t + used_h, 2)
                     port_left = cfg.port_stay_h
                     if port_left <= 0:
                         stops[port_idx]["departed_h"] = stops[port_idx]["arrived_h"]
                         port_idx = None
                 if not plan:                            # arrived part-way through the hour
-                    arrival_h = t + km / max(v_eff, 1e-9)
-                model_t = float(self._sim.fuel.rate_tph(speed, ship_risk, wx)) * cfg.dt_h
+                    arrival_h = t + used_h
+                model_t = sum(float(self._sim.fuel.rate_tph(v, ship_risk, wx)) * h
+                              for v, h in pieces)
             realized = model_t * cfg.theta_true * (1.0 + rng.normal(0.0, 0.03))
             fuel_used += realized
             fuel_pred += model_t * learner.theta
@@ -659,64 +752,87 @@ class TadifVoyage(VoyageSimulator):
 
     # ------------------------------------------------------------------
 
-    def _advance(self, pos: Coordinate, plan: List[int], km: float, stop_at=()):
-        """Sail `km` along the plan. Returns (pos, remaining plan, km sailed,
-        port node reached or None); the plan is empty once the last node is
-        reached. Sailing ends early at a node in `stop_at` (a port call)."""
+    def _sail(self, pos: Coordinate, plan: List[int], hours: float, prof, loss: float,
+              stop_at=()):
+        """
+        Sail for `hours` along the plan, each leg at its segment's ordered
+        speed from the profile, slowed by `loss` (storm hazard). Returns
+        (pos, remaining plan, km sailed, port node reached or None, hours
+        used, [(ordered speed, hours)] for the fuel model). The plan is
+        empty once the last node is reached; sailing ends early at a node in
+        `stop_at` (a port call).
+        """
 
-        plan, sailed = list(plan), 0.0
-        while km > 1e-9 and plan:
+        plan, sailed, used, pieces = list(plan), 0.0, 0.0, []
+        while hours - used > 1e-9 and plan:
             target = self._coord(plan[0])
+            v_kts = float(self._levels[prof[self._seg(self._column(plan[0]))]])
+            v = max(v_kts * KNOT_KMH * (1.0 - SPEED_LOSS * loss), 1e-6)
             dkm = _haversine_km(pos, target)
-            if dkm <= km:
-                pos, sailed, km = target, sailed + dkm, km - dkm
+            if dkm / v <= hours - used:
+                dt = dkm / v
+                pos, sailed, used = target, sailed + dkm, used + dt
+                pieces.append((v_kts, dt))
                 node, plan = plan[0], plan[1:]
                 if node in stop_at and plan:
-                    return pos, plan, sailed, node
+                    return pos, plan, sailed, node, used, pieces
             else:
-                f = km / dkm
+                dt = hours - used
+                f = dt * v / dkm
                 pos = (pos[0] + f * (target[0] - pos[0]), pos[1] + f * (target[1] - pos[1]))
-                sailed += km
-                km = 0.0
-        return pos, plan, sailed, None
+                sailed, used = sailed + dt * v, hours
+                pieces.append((v_kts, dt))
+        return pos, plan, sailed, None, used, pieces
 
     def _remaining_km(self, plan: List[int], pos: Coordinate) -> float:
         pts = [pos] + [self._coord(n) for n in plan]
         return sum(_haversine_km(a, b) for a, b in zip(pts[:-1], pts[1:]))
 
-    def _apply(self, d: dict, plan, speed, forced, detour, halted_h, first):
-        """Turn a decision into the ship's status, reason, plan and speed."""
+    def _apply(self, d: dict, plan, prof, forced, detour, halted_h, first):
+        """Turn a decision into the ship's status, reason, plan and speed profile."""
 
         lead = d["trigger"]["lead"].replace("_", " ")
+        if d.get("risk_exhausted"):
+            lead += " + risk-exhausted retry"
         act = d["action"]
         if act == "hold":
             return ("HALTED", f"Holding position ({lead}): " + d["explanation"]["text"],
-                    plan, speed, forced, detour)
+                    plan, prof, forced, detour)
 
-        new_plan, new_speed = d["plan_nodes"], d["speed_kts"]
+        new_plan, new_prof = d["plan_nodes"], np.array(d["profile"])
+        new_speed = d["speed_kts"]
+        speed = float(self._levels[np.asarray(prof)[self._seg(self._column(new_plan[0]))]])
+        ahead = d["selected_route"]["speed_profile_knots"]
+        profile_txt = ("" if len(set(ahead)) <= 1 else
+                       " Speed profile ahead: " + " / ".join(f"{v:.1f}" for v in ahead) + " kn.")
         if act == "planned_hold":
             return ("HALTED", f"Waiting {d['hold_h']:.0f} h for the storm to pass, then "
-                    f"sailing at {new_speed:.1f} kn ({lead}). " + d["explanation"]["text"],
-                    new_plan, new_speed, forced, d["detour"])
+                    f"sailing at {new_speed:.1f} kn ({lead}). " + d["explanation"]["text"]
+                    + profile_txt, new_plan, new_prof, forced, d["detour"])
         resumed = f"Resuming after {halted_h:.0f} h hold. " if halted_h > 0 else ""
-        spd = (f" Speed {speed:.1f} -> {new_speed:.1f} kn." if abs(new_speed - speed) > 1e-6 else "")
+        changed = not np.array_equal(new_prof, prof)
+        spd = ((f" Speed {speed:.1f} -> {new_speed:.1f} kn." if abs(new_speed - speed) > 1e-6
+                else "") + (profile_txt if changed else ""))
         detour = d["detour"]
 
         if act == "forced":
             return ("FORCED", resumed + d["explanation"]["text"] + spd,
-                    new_plan, new_speed, True, detour)
+                    new_plan, new_prof, True, detour)
         if act == "least_risk":
             return ("DEVIATING", resumed + d["explanation"]["text"] + spd,
-                    new_plan, new_speed, forced, detour)
+                    new_plan, new_prof, forced, detour)
 
         text = d["explanation"]["text"]
         if first:
             status = "DEVIATING" if detour else "CRUISING"
             reason = ("Departure plan detours around the forecast storm track. " if detour
                       else "Departure plan. ") + text
-        elif new_plan == plan:
+        elif new_plan == plan and not changed:
             status = "DEVIATING" if detour else "CRUISING"
             reason = resumed + f"Plan confirmed after {lead}." + spd
+        elif new_plan == plan:
+            status = "DEVIATING" if detour else "CRUISING"
+            reason = resumed + f"Speed profile changed after {lead}." + spd
         elif not d["incumbent_ok"]:
             rej = d.get("incumbent_rejection") or {}
             why = rej.get("violated_criterion", "risk").replace("_", " ")
@@ -725,4 +841,4 @@ class TadifVoyage(VoyageSimulator):
         else:
             status = "REJOINING" if not detour else "DEVIATING"
             reason = resumed + f"Better route found after {lead}. " + text + spd
-        return status, reason, new_plan, new_speed, False, detour
+        return status, reason, new_plan, new_prof, False, detour

@@ -68,18 +68,30 @@ table below says how far each part goes.
      and, only when a trigger fires, one decision cycle:
        scenarios.py    Φ_scenario  48–128 perturbed storm tracks, k-means reduction
        objectives.py   Φ_weight    softmax weight modulation (Eq. 5.21)
-       optimization.py Φ_opt       NSGA-III over lanes × speed × waiting time
+       optimization.py Φ_opt       NSGA-III over lanes × speed profile × waiting time
        simulation.py   Φ_sim       batch sim: candidates × scenarios × segments × storms
        risk.py         Φ_risk      CVaR_α, P(core), bootstrap CI, acceptance (Eq. 9.5)
        decision.py     Φ_dec       TOPSIS + PROMETHEE II, sensitivity, explanation
     app.py + static/storm_map.html   Flask API + Leaflet front end
 
-The selected route, speed and waiting time are what the ship sails. If no
-candidate passes the risk filter, the ship holds position when that is safer
-than any route. After `max_halt_h` (36 h) it sails the minimum-CVaR route
-anyway (FORCED). Waiting is also something NSGA-III can choose on its own
-(the hold gene), so the ship can let a storm pass instead of detouring
-around it.
+The selected route, speed profile and waiting time are what the ship sails.
+
+- **Speed profile.** The route is cut into about six fixed segments, and
+  each gets its own speed level (75–100 % of service speed), so the twin
+  can slow down near a storm and speed up afterwards. Because the segments
+  are fixed along the route, the current plan's profile can be re-evaluated
+  exactly in later cycles; the "keep the plan unless clearly beaten" rule
+  still holds.
+- **Waiting** is a decision too (the hold gene), so the ship can let a storm
+  pass instead of detouring around it.
+- **risk_exhausted (spec Alg. 14.9).** If no candidate passes the risk
+  filter, the twin first retries once per forecast. The retry uses the
+  maximum scenario count, ranks with safety and robustness weighted up, and
+  runs a longer search in which exceeding the risk limits counts as
+  constraint violation, so the search is driven towards acceptable routes.
+- Only if the retry also finds nothing does the ship hold position (when
+  that is safer than any route). After `max_halt_h` (36 h) it sails the
+  minimum-CVaR route anyway (FORCED).
 
 Decisions follow the decision-output schema of spec Section 15.4
 (`selected_route.objective_vector`, `explanation.score / runner_up_gap /
@@ -95,12 +107,12 @@ dominant_criteria / weight_sensitivity / twin_confidence_at_decision`,
 | Φ_scenario | perturbed heading/speed/radius/severity/position, error growing with lead time; k-means reduction with weights | not driven by real NWP ensembles; spread is configured, not learned |
 | Φ_sim | vectorized batch sim with speed loss and added resistance, cubic fuel law × θ | one fixed-point pass, no RK4 or hull stress |
 | Φ_weight | six criteria, Table 5.1 profiles, Eq. 5.21 softmax with deadline, weather and confidence pressures | no operator override |
-| Φ_opt | NSGA-III (Das–Dennis references, normalization, niching), route-aware crossover and mutation, constrained domination | 4 objectives inside the search, all 6 in the ranking |
-| Φ_risk | weighted CVaR (Rockafellar–Uryasev by sorting), P(core) and standard error, bootstrap 95 % CI, Eq. 9.5 filter, conservatism in the CRITICAL band | no adaptive stopping rule; one loss channel (no hull stress) |
+| Φ_opt | NSGA-III (Das–Dennis references, normalization, niching), route-aware crossover and mutation, constrained domination; decision variables = lane path, per-segment speed profile, waiting time | 4 objectives inside the search, all 6 in the ranking |
+| Φ_risk | weighted CVaR (Rockafellar–Uryasev by sorting), P(core) and standard error, bootstrap 95 % CI, Eq. 9.5 filter, conservatism in the CRITICAL band, risk_exhausted retry with N_max scenarios | no adaptive stopping rule; one loss channel (no hull stress) |
 | Φ_dec | TOPSIS, PROMETHEE II, weight-sensitivity sweep, dominant criteria, explanation text, hysteresis against flapping | |
 | Φ_learn | conjugate Bayesian θ update, rolling fuel error, persistent knowledge base | no PINN fine-tuning or preference learning |
 | Φ_health | Eq. 12.1–12.5 with live inputs, Table 12.1 bands, band-change triggers, Eq. 9.1 scenario scaling | |
-| Triggers | departure, storm detected, 6-hourly forecast, storm-field delta, core crossing, sensor drift, fuel error, low confidence, hold review | mission update, port congestion and comms loss are not simulated |
+| Triggers | departure, storm detected, 6-hourly forecast, storm-field delta, core crossing, sensor drift, fuel error, low confidence, hold review, port departure, risk exhausted | mission update, port congestion and comms loss are not simulated |
 
 Two deliberate deviations from the spec text: "ETA variance" is measured as
 RMS hours past the deadline, and "reliability" as expected hours late. With
